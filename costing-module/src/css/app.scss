@@ -1,0 +1,74 @@
+// app global css in SCSS form
+@import '../../node_modules/@uswds/uswds/dist/css/uswds.min.css';
+
+.usa-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #1b1b1b;
+  margin-bottom: 4px;
+}
+
+/* Primary blue button */
+.usa-button--brand {
+  background-color: #005ea2;
+  color: #fff;
+  text-transform: none;
+}
+
+.usa-button--brand:hover:not(:disabled) {
+  background-color: #004080;
+}
+
+/* Secondary gray button */
+.usa-button--brand-secondary {
+  background-color: #666;
+  color: #fff;
+  text-transform: none;
+}
+
+.usa-button--brand-secondary:hover:not(:disabled) {
+  background-color: #565c65;
+}
+
+.usa-error--brand-button {
+  background-color: #b50909;
+  color: #ffffff;
+  text-transform: none;
+}
+
+.usa-error--brand-button:hover {
+  background-color: #8b0a03 !important;
+}
+
+.usa-error--brand-button:active {
+  background-color: #5c0a05 !important;
+}
+
+.step-header {
+  margin-bottom: 24px;
+}
+
+.step-title {
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #1b1b1b;
+  margin: 0 0 8px 0;
+}
+
+.step-description {
+  font-size: 0.9375rem;
+  color: #71767a;
+  margin: 0;
+}
+
+.required-star {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin-left: 1px;
+}
+
+.required-star {
+  color: #d83933;
+  font-weight: bold;
+}
