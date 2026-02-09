@@ -49,6 +49,11 @@ export default defineConfigWithVueTs(
       ecmaVersion: 'latest',
       sourceType: 'module',
 
+      parserOptions: {
+        projectService: true,
+        extraFileExtensions: ['.vue'],
+      },
+
       globals: {
         ...globals.browser,
         ...globals.node, // SSR, Electron, config files

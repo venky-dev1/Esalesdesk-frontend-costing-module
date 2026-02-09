@@ -1,5 +1,8 @@
 // app global css in SCSS form
 @import '../../node_modules/@uswds/uswds/dist/css/uswds.min.css';
+@import '../../node_modules/jsuites/dist/jsuites.css';
+@import '../../node_modules/jspreadsheet-ce/dist/jspreadsheet.css';
+
 
 .usa-label {
   display: block;

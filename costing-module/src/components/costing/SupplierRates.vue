@@ -4,6 +4,8 @@ import { useMaterialsStore } from '../../stores/material';
 
 import { useProductConfigStore } from '../../stores/productConfig';
 
+import SupplierRateSheet from './SupplierRateSheet.vue';
+
 const productConfigStore = useProductConfigStore();
 
 const selectedSizes = computed(() => productConfigStore.selectedSizes);
@@ -250,6 +252,15 @@ function addSupplierProcess() {
                 :label="supplier"
               />
             </q-tabs>
+
+            <div v-if="displaySupplierTab && displayProcessTab" class="q-mt-sm">
+              <SupplierRateSheet
+                :material-name="selectedMaterial"
+                :process-type="displayProcessTab"
+                :supplier-name="displaySupplierTab"
+                :sizes="selectedSizes"
+              />
+            </div>
           </div>
         </div>
       </div>
