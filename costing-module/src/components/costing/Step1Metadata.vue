@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 
+import { useProductConfigStore } from '../../stores/productConfig';
+
+const productConfigStore = useProductConfigStore();
+
 // Define emits to pass data to parent
 const emit = defineEmits<{
   (
@@ -149,6 +153,8 @@ const sizeRows = computed((): string[][] => {
 
 // Watch for changes and emit to parent
 function emitMetadata() {
+  productConfigStore.setSizes(selectedSizes.value);
+  productConfigStore.setLpFactor(lpFactor.value);
   emit('update:metadata', {
     product: product.value,
     productMake: productMake.value,

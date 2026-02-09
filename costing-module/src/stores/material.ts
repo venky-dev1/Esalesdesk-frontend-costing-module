@@ -1,30 +1,60 @@
 import { defineStore } from 'pinia';
 
+export interface ProcessSourcing {
+  processType: string;
+  suppliers: string[];
+}
+
 export interface Material {
   name: string;
   qty: number;
   type: 'MAKE' | 'BUY' | null;
+  sourcing: ProcessSourcing[];
 }
 
 export const useMaterialsStore = defineStore('materials', {
   state: () => ({
     materials: [
-      { name: 'BODY', qty: 1, type: 'MAKE' },
-      { name: 'DISC', qty: 1, type: 'MAKE' },
-      { name: 'SEAT', qty: 1, type: 'BUY' },
-      { name: 'STEM', qty: 1, type: 'BUY' },
-      { name: 'PACKING', qty: 1, type: 'BUY' },
-      { name: 'OPERATOR', qty: 1, type: 'BUY' },
+      { name: 'BODY', qty: 1, type: 'MAKE', sourcing: [] },
+      { name: 'DISC', qty: 1, type: 'MAKE', sourcing: [] },
+      { name: 'SEAT', qty: 1, type: 'BUY', sourcing: [] },
+      { name: 'STEM', qty: 1, type: 'BUY', sourcing: [] },
+      { name: 'PACKING', qty: 1, type: 'BUY', sourcing: [] },
+      { name: 'OPERATOR', qty: 1, type: 'BUY', sourcing: [] },
     ] as Material[],
   }),
 
   actions: {
-    addMaterial(material: Material) {
-      this.materials.push(material);
+    addMaterial(material: Omit<Material, 'sourcing'>) {
+      this.materials.push({
+        ...material,
+        sourcing: [],
+      });
     },
-
     deleteMaterial(index: number) {
       this.materials.splice(index, 1);
+    },
+
+    addSupplierToProcess(materialName: string, processType: string, supplier: string) {
+      const material = this.materials.find((m) => m.name === materialName);
+      if (!material) return;
+
+      // Find existing process
+      let process = material.sourcing.find((p) => p.processType === processType);
+
+      // If process does not exist, create it
+      if (!process) {
+        process = {
+          processType,
+          suppliers: [],
+        };
+        material.sourcing.push(process);
+      }
+
+      // Prevent duplicate suppliers
+      if (!process.suppliers.includes(supplier)) {
+        process.suppliers.push(supplier);
+      }
     },
   },
 });

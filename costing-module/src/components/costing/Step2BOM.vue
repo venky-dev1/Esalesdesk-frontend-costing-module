@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useMaterialsStore } from '../../stores/material';
-import type { Material } from '../../stores/material';
 
 const materialsStore = useMaterialsStore();
 
@@ -21,7 +20,18 @@ function deleteMaterial(index: number) {
   materialsStore.deleteMaterial(index);
 }
 
-const newMaterial = ref<Material>({ name: '', qty: 1, type: null });
+type NewMaterial = {
+  name: string;
+  qty: number;
+  type: 'MAKE' | 'BUY' | null;
+};
+
+const newMaterial = ref<NewMaterial>({
+  name: '',
+  qty: 1,
+  type: null,
+});
+
 const typeOptions = [
   { label: '-- Select --', value: '', disable: true },
   { label: 'MAKE', value: 'MAKE' },

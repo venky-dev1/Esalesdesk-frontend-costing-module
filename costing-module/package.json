@@ -16,8 +16,12 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
+    "@univerjs/engine-render": "^0.15.4",
+    "@univerjs/ui": "^0.15.4",
     "@uswds/uswds": "^3.13.0",
     "axios": "^1.2.1",
+    "jspreadsheet-ce": "^5.0.4",
+    "jsuites": "^5.13.5",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "vue": "^3.5.22",
