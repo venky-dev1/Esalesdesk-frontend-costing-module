@@ -15,12 +15,88 @@ export interface Material {
 export const useMaterialsStore = defineStore('materials', {
   state: () => ({
     materials: [
-      { name: 'BODY', qty: 1, type: 'MAKE', sourcing: [] },
-      { name: 'DISC', qty: 1, type: 'MAKE', sourcing: [] },
-      { name: 'SEAT', qty: 1, type: 'BUY', sourcing: [] },
-      { name: 'STEM', qty: 1, type: 'BUY', sourcing: [] },
-      { name: 'PACKING', qty: 1, type: 'BUY', sourcing: [] },
-      { name: 'OPERATOR', qty: 1, type: 'BUY', sourcing: [] },
+      {
+        name: 'BODY',
+        qty: 1,
+        type: 'MAKE',
+        sourcing: [
+          {
+            processType: 'SAND CAST',
+            suppliers: ['IRONCORE CASTINGS PVT. LTD.'],
+          },
+          {
+            processType: 'INVESTMENT CASTING',
+            suppliers: ['PRIMECAST ENGINEERING'],
+          },
+        ],
+      },
+      {
+        name: 'DISC',
+        qty: 1,
+        type: 'MAKE',
+        sourcing: [
+          {
+            processType: 'SAND CAST',
+            suppliers: ['STEELFLOW COMPONENTS'],
+          },
+        ],
+      },
+      {
+        name: 'SEAT',
+        qty: 1,
+        type: 'BUY',
+        sourcing: [
+          {
+            processType: 'BROUGHT OUT',
+            suppliers: ['WAFERSEAL TECHNOLOGIES'],
+          },
+        ],
+      },
+      {
+        name: 'STEM',
+        qty: 1,
+        type: 'BUY',
+        sourcing: [
+          {
+            processType: 'BROUGHT OUT',
+            suppliers: ['FLOWAXIS CONTROLS'],
+          },
+        ],
+      },
+      {
+        name: 'COMPONENTS',
+        qty: 1,
+        type: 'BUY',
+        sourcing: [
+          {
+            processType: 'BROUGHT OUT',
+            suppliers: ['SLIMLINE VALVE SYSTEMS'],
+          },
+        ],
+      },
+
+      {
+        name: 'PACKING',
+        qty: 1,
+        type: 'BUY',
+        sourcing: [
+          {
+            processType: 'BROUGHT OUT',
+            suppliers: ['THINBODY FLOW SOLUTIONS'],
+          },
+        ],
+      },
+      {
+        name: 'OPERATOR',
+        qty: 1,
+        type: 'BUY',
+        sourcing: [
+          {
+            processType: 'BROUGHT OUT',
+            suppliers: ['GATELINE VALVES'],
+          },
+        ],
+      },
     ] as Material[],
   }),
 

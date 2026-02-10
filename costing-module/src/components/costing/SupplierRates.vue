@@ -3,8 +3,23 @@ import { ref, computed, watch } from 'vue';
 import { useMaterialsStore } from '../../stores/material';
 
 import { useProductConfigStore } from '../../stores/productConfig';
+import { SUB_MATERIALS_MAP } from '../../constants/dummyData';
 
-import SupplierRateSheet from './SupplierRateSheet.vue';
+import SupplierRateSheetU from './SupplierRateSheetU.vue';
+
+import { LocaleType, DataValidationType, DataValidationRenderMode } from '@univerjs/core';
+import type { IWorkbookData } from '@univerjs/core';
+
+// --- 1. DEFINE A DEFAULT EMPTY WORKBOOK (Fixes TS Error) ---
+const DEFAULT_WORKBOOK_DATA: IWorkbookData = {
+  id: 'workbook-empty',
+  appVersion: '3.0.0',
+  sheets: {},
+  locale: LocaleType.EN_US,
+  name: 'Empty Sheet',
+  sheetOrder: [],
+  styles: {},
+};
 
 const productConfigStore = useProductConfigStore();
 
@@ -133,6 +148,119 @@ function addSupplierProcess() {
     selectedProcessType.value = null;
   }
 }
+
+const univerData = computed((): IWorkbookData => {
+  if (!selectedMaterial.value) return DEFAULT_WORKBOOK_DATA;
+
+  const sizes = selectedSizes.value || ['2', '4', '6'];
+  const subMaterials = SUB_MATERIALS_MAP[selectedMaterial.value] || ['Standard'];
+
+  // A. Determine Default Unit based on Type
+  const defaultUnit = currentMaterial.value?.type === 'BUY' ? 'per Unit' : 'per Kg';
+
+  const headerStyle = {
+    bl: 1,
+    fs: 10,
+    ff: 'Arial',
+    cl: { rgb: '#1b1b1b' },
+    bg: { rgb: '#f5f7fa' },
+    ht: 2,
+    vt: 2,
+    bd: {
+      b: { s: 1, cl: { rgb: '#dcdcdc' } },
+      r: { s: 1, cl: { rgb: '#dcdcdc' } },
+      l: { s: 1, cl: { rgb: '#dcdcdc' } },
+      t: { s: 1, cl: { rgb: '#dcdcdc' } },
+    },
+  };
+  const wrapStyle = {
+    ht: 2,
+    vt: 2,
+    tb: 3,
+    fs: 10,
+  };
+  const centerStyle = { ht: 2, vt: 2 };
+
+  // B. Header Row
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const headerRow: Record<string, any> = {
+    '0': { v: 'Material', s: headerStyle },
+    '1': { v: 'Unit', s: headerStyle },
+  };
+
+  sizes.forEach((size, index) => {
+    headerRow[`${index + 2}`] = {
+      v: `${size}`,
+      s: headerStyle,
+    };
+  });
+
+  // C. Data Rows
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cellData: Record<string, any> = { '0': headerRow };
+
+  subMaterials.forEach((subMat, rowIndex) => {
+    const rowNum = `${rowIndex + 1}`;
+    cellData[rowNum] = {
+      '0': { v: subMat, s: wrapStyle },
+      '1': { v: defaultUnit, s: centerStyle }, // <--- Use Dynamic Default Here
+    };
+    sizes.forEach((_, colIndex) => {
+      cellData[rowNum][`${colIndex + 2}`] = { v: '' };
+    });
+  });
+
+  // D. Create Workbook with Data Validation
+  return {
+    id: 'workbook-01',
+    appVersion: '3.0.0',
+    sheets: {
+      'sheet-01': {
+        id: 'sheet-01',
+        name: 'Rates',
+        cellData: cellData,
+        columnCount: sizes.length + 10,
+        rowCount: subMaterials.length + 10,
+        defaultColumnWidth: 120,
+
+        columnData: {
+          '0': { w: 150 }, // Column 0 is "Material". 220px gives plenty of room.
+        },
+
+        rowData: Object.fromEntries(
+          Array.from({ length: subMaterials.length + 1 }, (_, i) => [
+            i.toString(),
+            { h: 35 }, // Height in pixels (40 is usually good for 2 lines)
+          ]),
+        ),
+
+        // --- E. DATA VALIDATION (The Dropdown Logic) ---
+        dataValidation: [
+          {
+            uid: 'unit-dropdown-rule',
+            type: DataValidationType.LIST,
+            formula1: 'per Kg,per Unit', // The Options
+            showErrorMessage: true,
+            showDropDown: true,
+            renderMode: DataValidationRenderMode.ARROW,
+            ranges: [
+              {
+                startRow: 1, // Start after header
+                endRow: subMaterials.length, // Apply to all data rows
+                startColumn: 1, // Column B (Index 1)
+                endColumn: 1, // Column B (Index 1)
+              },
+            ],
+          },
+        ],
+      },
+    },
+    locale: LocaleType.EN_US,
+    name: 'Costing Sheet',
+    sheetOrder: ['sheet-01'],
+    styles: {},
+  } as IWorkbookData;
+});
 </script>
 
 <template>
@@ -254,11 +382,9 @@ function addSupplierProcess() {
             </q-tabs>
 
             <div v-if="displaySupplierTab && displayProcessTab" class="q-mt-sm">
-              <SupplierRateSheet
-                :material-name="selectedMaterial"
-                :process-type="displayProcessTab"
-                :supplier-name="displaySupplierTab"
-                :sizes="selectedSizes"
+              <SupplierRateSheetU
+                :key="`${selectedMaterial}-${displayProcessTab}-${displaySupplierTab}`"
+                :initial-data="univerData"
               />
             </div>
           </div>
