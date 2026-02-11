@@ -15,6 +15,7 @@ import '@univerjs/preset-sheets-core/lib/index.css';
 
 // 2. Data Validation Preset
 import { UniverSheetsDataValidationPreset } from '@univerjs/preset-sheets-data-validation';
+import UniverPresetSheetsDataValidationEnUS from '@univerjs/preset-sheets-data-validation/locales/en-US';
 import '@univerjs/preset-sheets-data-validation/lib/index.css';
 
 // 3. Types
@@ -22,7 +23,6 @@ import { UniverInstanceType, type IWorkbookData, type Univer } from '@univerjs/c
 
 const props = defineProps<{
   initialData?: IWorkbookData;
-  subMaterialCount?: number;
 }>();
 
 const container = ref<HTMLElement | null>(null);
@@ -31,13 +31,19 @@ const univerInstance = shallowRef<Univer | null>(null);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const workbook = shallowRef<any>(null);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const univerAPIRef = shallowRef<any>(null);
+
 onMounted(() => {
   if (!container.value) return;
 
   const { univer, univerAPI } = createUniver({
     locale: LocaleType.EN_US,
     locales: {
-      [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS),
+      [LocaleType.EN_US]: mergeLocales(
+        UniverPresetSheetsCoreEnUS,
+        UniverPresetSheetsDataValidationEnUS,
+      ),
     },
     theme: defaultTheme,
     presets: [
@@ -46,11 +52,15 @@ onMounted(() => {
         header: false,
         footer: false,
       }),
-      UniverSheetsDataValidationPreset(),
+      UniverSheetsDataValidationPreset({
+        showSearchOnDropdown: false,
+        showEditOnDropdown: false,
+      }),
     ],
   });
 
   univerInstance.value = univer;
+  univerAPIRef.value = univerAPI;
 
   workbook.value = univer.createUnit(UniverInstanceType.UNIVER_SHEET, props.initialData || {});
 
@@ -74,6 +84,11 @@ onMounted(() => {
         const rule = univerAPI
           .newDataValidation()
           .requireValueInList(['per Kg', 'per Unit'])
+          .setOptions({
+            showDropDown: true,
+            showErrorMessage: true,
+            error: 'Please select a valid unit',
+          })
           .build();
         fRange.setDataValidation(rule);
       }
@@ -87,7 +102,20 @@ onBeforeUnmount(() => {
   }
 });
 
+function setCellValue(range: string, value: number) {
+  const univerAPI = univerAPIRef.value;
+  if (!univerAPI) return;
+  const fWorkbook = univerAPI.getActiveWorkbook();
+  if (!fWorkbook) return;
+
+  const fWorksheet = fWorkbook.getActiveSheet();
+  if (!fWorksheet) return;
+
+  fWorksheet.getRange(range).setValue(value);
+}
+
 defineExpose({
+  setCellValue,
   getData: () => {
     return workbook.value?.save();
   },
@@ -97,7 +125,7 @@ defineExpose({
 <style scoped>
 .univer-wrapper {
   width: 100%;
-  height: 600px;
+  height: 400px;
   border: 1px solid #e0e0e0;
 }
 

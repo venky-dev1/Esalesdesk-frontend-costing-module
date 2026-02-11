@@ -3,7 +3,6 @@
 @import '../../node_modules/jsuites/dist/jsuites.css';
 @import '../../node_modules/jspreadsheet-ce/dist/jspreadsheet.css';
 
-
 .usa-label {
   display: block;
   font-size: 0.875rem;
@@ -32,6 +31,12 @@
 
 .usa-button--brand-secondary:hover:not(:disabled) {
   background-color: #565c65;
+}
+
+.usa-button--brand-teal {
+  background-color: #147c80;
+  color: #fff;
+  text-transform: none;
 }
 
 .usa-error--brand-button {
