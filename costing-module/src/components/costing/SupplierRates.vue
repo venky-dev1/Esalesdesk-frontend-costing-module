@@ -179,8 +179,9 @@ const univerData = computed((): IWorkbookData => {
     vt: 2,
     tb: 3,
     fs: 10,
+    cl: { rgb: '#71767a' },
   };
-  const centerStyle = { ht: 2, vt: 2 };
+  const centerStyle = { ht: 2, vt: 2, cl: { rgb: '#71767a' } };
 
   // B. Header Row
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -215,13 +216,22 @@ const univerData = computed((): IWorkbookData => {
         const materialRates = basePriceData[subMat];
         if (materialRates) {
           // Check exact match or number match
-          const rate = materialRates[cleanSize] || materialRates[parseFloat(cleanSize)];
+          let rate = materialRates[cleanSize] || materialRates[parseFloat(cleanSize)];
+
           if (rate !== undefined) {
+            const isBodyCategory = selectedMaterial.value === 'BODY';
+            const isInvestment = displayProcessTab.value === 'INVESTMENT CASTING';
+            if (isBodyCategory && isInvestment) {
+              rate = rate * 1.5;
+            }
             cellValue = rate;
           }
         }
       }
-      cellData[rowNum][`${colIndex + 2}`] = { v: cellValue, s: { vt: 2, ht: 2 } };
+      cellData[rowNum][`${colIndex + 2}`] = {
+        v: cellValue,
+        s: { vt: 2, ht: 2, cl: { rgb: '#71767a' } },
+      };
     });
   });
 
@@ -240,12 +250,12 @@ const univerData = computed((): IWorkbookData => {
         rowCount: subMaterials.length + 2,
         defaultColumnWidth: 120,
         columnHeader: {
-          height: 20, // Required by type definition
+          height: 20,
           hidden: BooleanNumber.TRUE,
         },
 
         columnData: {
-          '0': { w: 150 }, // Column 0 is "Material". 220px gives plenty of room.
+          '0': { w: 150 },
         },
 
         rowData: Object.fromEntries(
@@ -716,7 +726,11 @@ function addNote() {
                             accept=".pdf,.doc,.docx,.xls,.xlsx"
                           >
                             <template #append>
-                              <q-btn color="teal" label="UPLOAD" @click="showUploadDialog = true" />
+                              <q-btn
+                                class="usa-button--brand-info"
+                                label="UPLOAD"
+                                @click="showUploadDialog = true"
+                              />
                             </template>
                           </q-file>
                         </div>
@@ -814,7 +828,7 @@ function addNote() {
                       <q-card-actions align="right">
                         <q-btn flat label="CANCEL" @click="showUploadDialog = false" />
                         <q-btn
-                          color="teal"
+                          class="usa-button--brand-info"
                           label="START UPLOAD"
                           :disable="!uploadFiles.length"
                           @click="startUpload"
@@ -845,8 +859,8 @@ function addNote() {
 
                       <!-- Footer -->
                       <q-card-actions align="right">
-                        <q-btn flat label="CANCEL" v-close-popup color="teal" />
-                        <q-btn flat label="ADD" color="teal" @click="addNote" />
+                        <q-btn flat label="CANCEL" v-close-popup color="info" />
+                        <q-btn flat label="ADD" color="info" @click="addNote" />
                       </q-card-actions>
                     </q-card>
                   </q-dialog>
@@ -1032,7 +1046,7 @@ function addNote() {
 }
 
 .upload-header {
-  background: #1aa3b0;
+  background: #31ccec;
   color: white;
   padding: 10px;
 }
@@ -1043,6 +1057,6 @@ function addNote() {
 }
 
 .simple-note-input {
-  border-bottom: 2px solid #00acc1;
+  border-bottom: 2px solid #31ccec;
 }
 </style>

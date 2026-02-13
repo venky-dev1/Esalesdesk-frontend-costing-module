@@ -6,16 +6,19 @@ export interface ProcessSourcing {
 }
 
 export interface Material {
+  id: string;
   name: string;
   qty: number;
   type: 'MAKE' | 'BUY' | null;
   sourcing: ProcessSourcing[];
+  children?: Material[];
 }
 
 export const useMaterialsStore = defineStore('materials', {
   state: () => ({
     materials: [
       {
+        id: crypto.randomUUID(),
         name: 'BODY',
         qty: 1,
         type: 'MAKE',
@@ -31,6 +34,7 @@ export const useMaterialsStore = defineStore('materials', {
         ],
       },
       {
+        id: crypto.randomUUID(),
         name: 'DISC',
         qty: 1,
         type: 'MAKE',
@@ -42,6 +46,7 @@ export const useMaterialsStore = defineStore('materials', {
         ],
       },
       {
+        id: crypto.randomUUID(),
         name: 'SEAT',
         qty: 1,
         type: 'BUY',
@@ -53,6 +58,7 @@ export const useMaterialsStore = defineStore('materials', {
         ],
       },
       {
+        id: crypto.randomUUID(),
         name: 'STEM',
         qty: 1,
         type: 'BUY',
@@ -64,6 +70,7 @@ export const useMaterialsStore = defineStore('materials', {
         ],
       },
       {
+        id: crypto.randomUUID(),
         name: 'COMPONENTS',
         qty: 1,
         type: 'BUY',
@@ -74,8 +81,8 @@ export const useMaterialsStore = defineStore('materials', {
           },
         ],
       },
-
       {
+        id: crypto.randomUUID(),
         name: 'PACKING',
         qty: 1,
         type: 'BUY',
@@ -87,6 +94,7 @@ export const useMaterialsStore = defineStore('materials', {
         ],
       },
       {
+        id: crypto.randomUUID(),
         name: 'OPERATOR',
         qty: 1,
         type: 'BUY',
@@ -101,24 +109,24 @@ export const useMaterialsStore = defineStore('materials', {
   }),
 
   actions: {
-    addMaterial(material: Omit<Material, 'sourcing'>) {
+    addMaterial(material: Omit<Material, 'id' | 'sourcing'>) {
       this.materials.push({
+        id: crypto.randomUUID(),
         ...material,
         sourcing: [],
       });
     },
-    deleteMaterial(index: number) {
-      this.materials.splice(index, 1);
+
+    deleteMaterial(id: string) {
+      this.materials = this.materials.filter((m) => m.id !== id);
     },
 
-    addSupplierToProcess(materialName: string, processType: string, supplier: string) {
-      const material = this.materials.find((m) => m.name === materialName);
+    addSupplierToProcess(materialId: string, processType: string, supplier: string) {
+      const material = this.materials.find((m) => m.id === materialId);
       if (!material) return;
 
-      // Find existing process
       let process = material.sourcing.find((p) => p.processType === processType);
 
-      // If process does not exist, create it
       if (!process) {
         process = {
           processType,
@@ -127,7 +135,6 @@ export const useMaterialsStore = defineStore('materials', {
         material.sourcing.push(process);
       }
 
-      // Prevent duplicate suppliers
       if (!process.suppliers.includes(supplier)) {
         process.suppliers.push(supplier);
       }

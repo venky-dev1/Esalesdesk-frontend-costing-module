@@ -16,8 +16,8 @@ const columns = [
 
 const materialsCount = computed(() => materialsStore.materials.length);
 
-function deleteMaterial(index: number) {
-  materialsStore.deleteMaterial(index);
+function deleteMaterial(id: string) {
+  materialsStore.deleteMaterial(id);
 }
 
 type NewMaterial = {
@@ -131,7 +131,7 @@ function addMaterial() {
     <q-table
       :rows="materialsStore.materials"
       :columns="columns"
-      row-key="name"
+      row-key="id"
       flat
       bordered
       class="bom-table"
@@ -162,7 +162,7 @@ function addMaterial() {
             class="delete-btn usa-error--brand-button"
             label="Delete"
             dense
-            @click="deleteMaterial(props.rowIndex)"
+            @click="deleteMaterial(props.row.id)"
           />
         </q-td>
       </template>

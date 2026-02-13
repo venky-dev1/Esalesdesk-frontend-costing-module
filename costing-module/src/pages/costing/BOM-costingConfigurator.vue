@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import Step1Metadata from '../../components/costing/Step1Metadata.vue';
 import Step2BOM from '../../components/costing/Step2BOM.vue';
 import SupplierRates from '../../components/costing/SupplierRates.vue';
+import CostEngine from '../../components/costing/CostEngine.vue';
 
 interface StepItem {
   name: number;
@@ -116,9 +117,8 @@ const isConfigurationValid = computed(() => {
 
       <!-- Step 4: Cost Engine -->
       <q-step :name="4" title="Cost Engine" :done="step > 4" done-color="green" icon="analytics">
-        <div class="q-pa-md">
-          <h5>Step 4: Cost Engine</h5>
-          <p class="text-grey-7">Configure cost engine rules here.</p>
+        <div>
+          <CostEngine />
         </div>
       </q-step>
 

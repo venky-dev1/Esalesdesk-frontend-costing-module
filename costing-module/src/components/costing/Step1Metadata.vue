@@ -155,6 +155,7 @@ const sizeRows = computed((): string[][] => {
 function emitMetadata() {
   productConfigStore.setSizes(selectedSizes.value);
   productConfigStore.setLpFactor(lpFactor.value);
+  productConfigStore.setProduct(product.value);
   emit('update:metadata', {
     product: product.value,
     productMake: productMake.value,

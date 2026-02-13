@@ -134,7 +134,7 @@ watch(
 }
 
 /* Material Column (First data column) Styling */
-:deep(.jexcel tbody td[data-x="0"]) {
+:deep(.jexcel tbody td[data-x='0']) {
   background-color: #f9f9f9 !important;
   font-weight: 500 !important;
   color: #1b1b1b !important;
