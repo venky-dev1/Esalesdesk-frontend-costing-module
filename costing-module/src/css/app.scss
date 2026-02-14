@@ -13,24 +13,24 @@
 
 /* Primary blue button */
 .usa-button--brand {
-  background-color: #005ea2;
+  background-color: #3b82f6;
   color: #fff;
   text-transform: none;
 }
 
 .usa-button--brand:hover:not(:disabled) {
-  background-color: #004080;
+  background-color: #2563eb;
 }
 
 /* Secondary gray button */
 .usa-button--brand-secondary {
-  background-color: #666;
+  background-color: #8b5cf6;
   color: #fff;
   text-transform: none;
 }
 
 .usa-button--brand-secondary:hover:not(:disabled) {
-  background-color: #565c65;
+  background-color: #7c3aed;
 }
 
 .usa-button--brand-teal {
@@ -43,6 +43,13 @@
   background-color: #31ccec;
   color: #fff;
   text-transform: none;
+}
+
+.usa-button--brand-accent {
+  background-color: #c026d3;
+  color: #fff;
+  text-transform: none;
+  opacity: 80%;
 }
 
 .usa-error--brand-button {
@@ -65,7 +72,7 @@
 
 .step-title {
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 500;
   color: #1b1b1b;
   margin: 0 0 8px 0;
 }

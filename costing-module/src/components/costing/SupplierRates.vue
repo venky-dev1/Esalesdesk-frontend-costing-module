@@ -15,8 +15,6 @@ const productConfigStore = useProductConfigStore();
 
 const selectedSizes = computed(() => productConfigStore.selectedSizes);
 
-console.log(selectedSizes);
-
 const materialsStore = useMaterialsStore();
 
 const selectedMaterial = ref(materialsStore.materials[0]?.name || '');
@@ -47,9 +45,9 @@ interface SelectOption {
 }
 
 const processTypeOptions: SelectOption[] = [
-  { label: 'Sand Cast', value: 'SAND_CAST' },
-  { label: 'Investment Casting', value: 'INVESTMENT_CASTING' },
-  { label: 'Shell Casting', value: 'SHELL_CASTING' },
+  { label: 'Sand Cast', value: 'SAND CAST' },
+  { label: 'Investment Casting', value: 'INVESTMENT CASTING' },
+  { label: 'Shell Casting', value: 'SHELL CASTING' },
 ];
 
 const makeSupplierOptions: SelectOption[] = [
@@ -127,7 +125,7 @@ function addSupplierProcess() {
   if (!processType) return;
 
   materialsStore.addSupplierToProcess(
-    currentMaterial.value.name,
+    currentMaterial.value.id,
     processType,
     selectedSupplier.value,
   );
@@ -458,8 +456,7 @@ function addNote() {
         <!-- Add Button -->
         <div class="col-12 col-md-5">
           <q-btn
-            color="info"
-            class="full-width"
+            class="full-width usa-button--brand-accent"
             label="+ ADD SUPPLIER & PROCESS"
             :disable="!selectedProcessType || !selectedSupplier"
             @click="addSupplierProcess"
@@ -477,8 +474,8 @@ function addNote() {
           class="material-section"
           v-model="selectedMaterial"
           dense
-          active-color="pink-7"
-          indicator-color="pink-7"
+          active-color="#fff"
+          indicator-color="indigo"
           align="left"
         >
           <q-tab
@@ -506,7 +503,7 @@ function addNote() {
             dense
             class="process-display-tabs"
             align="left"
-            indicator-color="primary"
+            indicator-color="accent"
           >
             <q-tab
               v-for="process in currentMaterial.sourcing"
@@ -522,8 +519,8 @@ function addNote() {
               v-model="displaySupplierTab"
               dense
               class="supplier-display-tabs"
-              active-color="pink-7"
-              indicator-color="pink-7"
+              active-color="accent"
+              indicator-color="accent"
               align="left"
             >
               <q-tab
@@ -541,7 +538,7 @@ function addNote() {
                     icon="tune"
                     label="Bulk Rate Fill"
                     size="md"
-                    class="q-mr-md usa-button--brand-teal"
+                    color="info"
                     @click="showBulkDialog = true"
                   />
 
@@ -566,7 +563,7 @@ function addNote() {
                               label="Material"
                               outlined
                               dense
-                              color="teal"
+                              color="info"
                             />
                           </div>
 
@@ -577,14 +574,14 @@ function addNote() {
                               label="Rate"
                               outlined
                               dense
-                              color="teal"
+                              color="info"
                             />
                           </div>
 
                           <div class="col-4 flex flex-center">
                             <q-btn
                               outline
-                              color="teal"
+                              color="info"
                               icon="add"
                               label="ADD RULE"
                               @click="addRule"
@@ -601,7 +598,7 @@ function addNote() {
                               label="From Size"
                               outlined
                               dense
-                              color="teal"
+                              color="info"
                             />
                           </div>
 
@@ -612,6 +609,7 @@ function addNote() {
                               label="To Size"
                               outlined
                               dense
+                              color="info"
                             />
                           </div>
                         </div>
@@ -637,7 +635,7 @@ function addNote() {
 
                             <!-- Right Content -->
                             <div class="rule-right">
-                              <q-chip dense color="teal" text-color="white" class="q-mr-md">
+                              <q-chip dense color="info" text-color="white" class="q-mr-md">
                                 ₹{{ rule.rate }}
                               </q-chip>
 
@@ -656,9 +654,9 @@ function addNote() {
 
                       <!-- Footer -->
                       <q-card-actions align="right" class="q-pa-md">
-                        <q-btn flat label="CANCEL" color="teal" v-close-popup />
+                        <q-btn flat label="CANCEL" color="info" v-close-popup />
                         <q-btn
-                          class="usa-button--brand-teal"
+                          class="usa-button--brand-info"
                           label="APPLY RATES"
                           @click="applyBulkRates"
                         />
@@ -670,8 +668,8 @@ function addNote() {
                 <!-- 2 q-btn to show dialog for add document, notes -->
                 <div>
                   <q-btn
-                    color="info"
-                    class="q-mr-md"
+                    style="opacity: 80%"
+                    class="q-mr-md usa-button--brand-accent"
                     label="ADD DOCUMENT"
                     @click="showDocumentDialog = true"
                   />
@@ -727,7 +725,7 @@ function addNote() {
                           >
                             <template #append>
                               <q-btn
-                                class="usa-button--brand-info"
+                                class="usa-button--brand-accent"
                                 label="UPLOAD"
                                 @click="showUploadDialog = true"
                               />
@@ -763,7 +761,7 @@ function addNote() {
 
                       <!-- Footer -->
                       <q-card-actions align="right">
-                        <q-btn flat label="CLOSE" v-close-popup />
+                        <q-btn flat label="CLOSE" v-close-popup color="accent" />
                       </q-card-actions>
                     </q-card>
                   </q-dialog>
@@ -826,9 +824,14 @@ function addNote() {
 
                       <!-- Footer -->
                       <q-card-actions align="right">
-                        <q-btn flat label="CANCEL" @click="showUploadDialog = false" />
                         <q-btn
-                          class="usa-button--brand-info"
+                          flat
+                          label="CANCEL"
+                          @click="showUploadDialog = false"
+                          color="accent"
+                        />
+                        <q-btn
+                          class="usa-button--brand-accent"
                           label="START UPLOAD"
                           :disable="!uploadFiles.length"
                           @click="startUpload"
@@ -837,7 +840,11 @@ function addNote() {
                     </q-card>
                   </q-dialog>
 
-                  <q-btn color="info" label="ADD NOTES" @click="showNotesDialog = true" />
+                  <q-btn
+                    class="usa-button--brand-accent"
+                    label="ADD NOTES"
+                    @click="showNotesDialog = true"
+                  />
                   <q-dialog v-model="showNotesDialog" persistent>
                     <q-card class="simple-notes-dialog">
                       <!-- Header -->
@@ -859,8 +866,8 @@ function addNote() {
 
                       <!-- Footer -->
                       <q-card-actions align="right">
-                        <q-btn flat label="CANCEL" v-close-popup color="info" />
-                        <q-btn flat label="ADD" color="info" @click="addNote" />
+                        <q-btn flat label="CANCEL" v-close-popup color="accent" />
+                        <q-btn flat label="ADD" color="accent" @click="addNote" />
                       </q-card-actions>
                     </q-card>
                   </q-dialog>
@@ -893,15 +900,16 @@ function addNote() {
 }
 
 .material-section {
-  background: #31ccec;
+  background: #c026d3;
   color: #ffffff;
-  opacity: 100%;
+  opacity: 80%;
 }
 
 /* Process Display Tabs */
 .process-display-tabs {
   border-bottom: 1px solid #e0e0e0;
   background: gray;
+  opacity: 80%;
 }
 
 .process-display-tabs :deep(.q-tab) {
@@ -924,7 +932,7 @@ function addNote() {
   text-transform: uppercase;
   font-weight: 600;
   font-size: 0.75rem;
-
+  color: #fff;
   border-radius: 4px;
   margin-right: 8px;
 }
@@ -942,7 +950,7 @@ function addNote() {
 
 /* Header Section */
 .bulk-header {
-  background: #147c80;
+  background: #31ccec;
   color: #ffffff;
   padding: 15px;
 }
@@ -1046,7 +1054,7 @@ function addNote() {
 }
 
 .upload-header {
-  background: #31ccec;
+  background: #c026d3;
   color: white;
   padding: 10px;
 }
@@ -1057,6 +1065,6 @@ function addNote() {
 }
 
 .simple-note-input {
-  border-bottom: 2px solid #31ccec;
+  border-bottom: 2px solid #c026d3;
 }
 </style>

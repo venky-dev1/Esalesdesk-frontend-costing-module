@@ -251,7 +251,7 @@ const isConfigurationValid = computed(() => {
 .summary-title {
   margin: 0 0 16px 0;
   font-size: 1.5rem;
-  font-weight: 400;
+  font-weight: 500;
   color: #1b1b1b;
 }
 
