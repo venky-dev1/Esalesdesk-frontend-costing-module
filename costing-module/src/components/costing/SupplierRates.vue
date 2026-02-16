@@ -6,6 +6,7 @@ import { useProductConfigStore } from '../../stores/productConfig';
 import { SUB_MATERIALS_MAP, DEMO_DATA } from '../../constants/dummyData';
 
 import SupplierRateSheetU from './SupplierRateSheetU.vue';
+import type { DropdownConfig } from './types';
 
 import { LocaleType } from '@univerjs/core';
 import type { IWorkbookData } from '@univerjs/core';
@@ -155,7 +156,7 @@ const univerData = computed((): IWorkbookData => {
   const subMaterials = SUB_MATERIALS_MAP[selectedMaterial.value] || ['Standard'];
 
   // A. Determine Default Unit based on Type
-  const defaultUnit = currentMaterial.value?.type === 'BUY' ? 'per Unit' : 'per Kg';
+  const defaultUnit = currentMaterial.value?.type === 'BUY' ? 'Per Unit' : 'Per Kg';
 
   const headerStyle = {
     bl: 1,
@@ -235,7 +236,7 @@ const univerData = computed((): IWorkbookData => {
 
   const workbookId = `${selectedMaterial.value}_${displayProcessTab.value}_${displaySupplierTab.value}`;
 
-  // D. Create Workbook with Data Validation
+  // D. Create Workbook
   return {
     id: workbookId,
     appVersion: '3.0.0',
@@ -254,6 +255,7 @@ const univerData = computed((): IWorkbookData => {
 
         columnData: {
           '0': { w: 150 },
+          '1': { w: 150 },
         },
 
         rowData: Object.fromEntries(
@@ -269,6 +271,21 @@ const univerData = computed((): IWorkbookData => {
     sheetOrder: ['sheet-01'],
     styles: {},
   } as IWorkbookData;
+});
+
+const unitDropdownConfigs = computed((): DropdownConfig[] | undefined => {
+  if (!selectedMaterial.value || !displayProcessTab.value || !displaySupplierTab.value)
+    return undefined;
+  const subMaterials = SUB_MATERIALS_MAP[selectedMaterial.value] || ['Standard'];
+  if (subMaterials.length === 0) return undefined;
+  // Unit column is B (column index 1), data rows start at row 2
+  const lastRow = subMaterials.length + 1;
+  return [
+    {
+      range: `B2:B${lastRow}`,
+      values: ['Per Kg', 'Per Unit'],
+    },
+  ];
 });
 
 interface BulkRule {
@@ -877,6 +894,7 @@ function addNote() {
                 ref="sheetRef"
                 :key="`${selectedMaterial}-${displayProcessTab}-${displaySupplierTab}`"
                 :initial-data="univerData"
+                :dropdown-configs="unitDropdownConfigs"
               />
             </div>
           </div>

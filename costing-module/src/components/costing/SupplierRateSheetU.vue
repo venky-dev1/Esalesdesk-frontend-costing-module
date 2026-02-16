@@ -20,9 +20,11 @@ import '@univerjs/preset-sheets-data-validation/lib/index.css';
 
 // 3. Types
 import { UniverInstanceType, type IWorkbookData, type Univer } from '@univerjs/core';
+import type { DropdownConfig } from './types';
 
 const props = defineProps<{
   initialData?: IWorkbookData;
+  dropdownConfigs?: DropdownConfig[] | undefined;
 }>();
 
 const container = ref<HTMLElement | null>(null);
@@ -33,6 +35,19 @@ const workbook = shallowRef<any>(null);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const univerAPIRef = shallowRef<any>(null);
+
+function applyDropdownValidation(range: string, values: string[]) {
+  const univerAPI = univerAPIRef.value;
+  if (!univerAPI) return;
+  const fWorkbook = univerAPI.getActiveWorkbook();
+  if (!fWorkbook) return;
+  const fWorksheet = fWorkbook.getActiveSheet();
+  if (!fWorksheet) return;
+
+  const fRange = fWorksheet.getRange(range);
+  const rule = univerAPI.newDataValidation().requireValueInList(values).build();
+  fRange.setDataValidation(rule);
+}
 
 onMounted(() => {
   if (!container.value) return;
@@ -53,7 +68,7 @@ onMounted(() => {
         footer: false,
       }),
       UniverSheetsDataValidationPreset({
-        showSearchOnDropdown: false,
+        // showSearchOnDropdown: false,
         showEditOnDropdown: false,
       }),
     ],
@@ -64,35 +79,11 @@ onMounted(() => {
 
   workbook.value = univer.createUnit(UniverInstanceType.UNIVER_SHEET, props.initialData || {});
 
-  const sheetId = Object.keys(props.initialData?.sheets || {})[0] || 'sheet-01';
-  const sheetData = props.initialData?.sheets?.[sheetId];
-  const cellData = sheetData?.cellData || {};
-
-  const totalKeys = Object.keys(cellData).length;
-  const materialCount = totalKeys > 0 ? totalKeys - 1 : 0;
-
-  if (materialCount > 0) {
-    const endRow = 1 + materialCount;
-    // Build the range string for column B (Unit), e.g. "B2:B4"
-    const rangeStr = `B2:B${endRow}`;
-
-    const fWorkbook = univerAPI.getActiveWorkbook();
-    if (fWorkbook) {
-      const fWorksheet = fWorkbook.getActiveSheet();
-      if (fWorksheet) {
-        const fRange = fWorksheet.getRange(rangeStr);
-        const rule = univerAPI
-          .newDataValidation()
-          .requireValueInList(['per Kg', 'per Unit'])
-          .setOptions({
-            showDropDown: true,
-            showErrorMessage: true,
-            error: 'Please select a valid unit',
-          })
-          .build();
-        fRange.setDataValidation(rule);
-      }
-    }
+  // Apply dropdown data validation for each config
+  if (props.dropdownConfigs) {
+    props.dropdownConfigs.forEach((cfg) => {
+      applyDropdownValidation(cfg.range, cfg.values);
+    });
   }
 });
 
@@ -116,6 +107,7 @@ function setCellValue(range: string, value: number) {
 
 defineExpose({
   setCellValue,
+  applyDropdownValidation,
   getData: () => {
     return workbook.value?.save();
   },

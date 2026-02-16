@@ -4,8 +4,10 @@ import { useMaterialsStore } from '../../stores/material';
 import { useProductConfigStore } from '../../stores/productConfig';
 import type { Material } from '../../stores/material';
 import SupplierRateSheetU from './SupplierRateSheetU.vue';
+import type { DropdownConfig } from './types';
 import type { IWorkbookData, ICellData } from '@univerjs/core';
 import { LocaleType, BooleanNumber } from '@univerjs/core';
+import { SUB_MATERIALS_MAP, CAST_WEIGHT_DATA } from 'src/constants/dummyData';
 
 const materialsStore = useMaterialsStore();
 const configStore = useProductConfigStore();
@@ -14,6 +16,7 @@ const searchBom = ref('');
 const activeTab = ref('ATTRIBUTES');
 const selectedBomNode = ref<string | null>(null);
 const expanded = ref(['ROOT']);
+
 const landedCost = ref({
   overhead: 8,
   freight: 2,
@@ -27,7 +30,7 @@ const categoryTabs = [
   { name: 'TESTING', icon: 'rule', label: 'Testing' },
   { name: 'TOOLING', icon: 'construction', label: 'Tooling' },
   { name: 'LANDED COST', icon: 'receipt_long', label: 'Landed Cost' },
-  { name: 'PREVIEW', icon: 'analytics', label: 'Analytics' },
+  { name: 'PREVIEW', icon: 'analytics', label: 'Preview' },
 ];
 interface BomNode {
   label: string;
@@ -137,6 +140,60 @@ const getEmptyWorkbook = (): IWorkbookData => ({
   styles: {},
 });
 
+const getAttributesColumns = (): { title: string; width: number }[] => [
+  { title: 'Attribute Name', width: 150 },
+  { title: 'Unit', width: 140 },
+  { title: 'Base Material', width: 140 },
+];
+
+const getMaterialsColumns = (): { title: string; width: number }[] => [
+  { title: 'Material', width: 150 },
+];
+
+const getOperationsColumns = (): { title: string; width: number }[] => [
+  { title: 'Material', width: 120 },
+  { title: 'Operation Name', width: 180 },
+  { title: 'Unit', width: 150 },
+];
+
+const getTestingColumns = (): { title: string; width: number }[] => [
+  { title: 'Test Name', width: 180 },
+  { title: 'Unit', width: 150 },
+];
+
+const getToolingColumns = (): { title: string; width: number }[] => [
+  { title: 'Tooling Name', width: 180 },
+  { title: 'Unit', width: 150 },
+  { title: 'Life Cycles', width: 100 },
+  { title: 'Start Date', width: 100 },
+  { title: 'End Date', width: 100 },
+  { title: 'Already Made', width: 100 },
+];
+
+const getPreviewColumns = (): { title: string; width: number }[] => [
+  { title: 'Material', width: 200 },
+  { title: 'Unit', width: 150 },
+];
+
+const getColumnsForTab = (tabName: string): { title: string; width: number }[] => {
+  switch (tabName) {
+    case 'ATTRIBUTES':
+      return getAttributesColumns();
+    case 'MATERIALS':
+      return getMaterialsColumns();
+    case 'OPERATIONS':
+      return getOperationsColumns();
+    case 'TESTING':
+      return getTestingColumns();
+    case 'TOOLING':
+      return getToolingColumns();
+    case 'PREVIEW':
+      return getPreviewColumns();
+    default:
+      return [];
+  }
+};
+
 const currentWorkbookData = computed((): IWorkbookData => {
   if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return getEmptyWorkbook();
 
@@ -162,42 +219,9 @@ const currentWorkbookData = computed((): IWorkbookData => {
     },
   };
 
-  let columns: { title: string; width: number }[] = [];
+  const wrapStyle = { ht: 2, vt: 2, tb: 3, fs: 10, cl: { rgb: '#71767a' } };
 
-  if (tab === 'ATTRIBUTES') {
-    columns = [
-      { title: 'Attribute Name', width: 150 },
-      { title: 'Unit', width: 80 },
-      { title: 'Base Material', width: 120 },
-    ];
-  } else if (tab === 'MATERIALS') {
-    columns = [{ title: 'Material', width: 150 }];
-  } else if (tab === 'OPERATIONS') {
-    columns = [
-      { title: 'Material', width: 120 },
-      { title: 'Operation Name', width: 180 },
-      { title: 'Unit', width: 80 },
-    ];
-  } else if (tab === 'TESTING') {
-    columns = [
-      { title: 'Test Name', width: 180 },
-      { title: 'Unit', width: 80 },
-    ];
-  } else if (tab === 'TOOLING') {
-    columns = [
-      { title: 'Tooling Name', width: 180 },
-      { title: 'Unit', width: 80 },
-      { title: 'Life Cycles', width: 100 },
-      { title: 'Start Date', width: 100 },
-      { title: 'End Date', width: 100 },
-      { title: 'Already Made', width: 100 },
-    ];
-  } else if (tab === 'PREVIEW') {
-    columns = [
-      { title: 'Material', width: 200 },
-      { title: 'Unit', width: 80 },
-    ];
-  }
+  const columns = getColumnsForTab(tab);
 
   if (columns.length > 0) {
     sizes.forEach((size) => {
@@ -214,6 +238,67 @@ const currentWorkbookData = computed((): IWorkbookData => {
   });
   cellData['0'] = headerRowData;
 
+  let dataRowCount = 0;
+
+  if (tab === 'ATTRIBUTES') {
+    const parentLabel = selectedNode.name;
+
+    const subMaterials = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+
+    subMaterials.forEach((subMat, rowIndex) => {
+      const actualRowIndex = rowIndex + 1;
+
+      const rowCells: Record<string, ICellData> = {};
+
+      rowCells['0'] = { v: 'Cast Weight', s: wrapStyle };
+
+      rowCells['1'] = { v: 'Weight(kg)', s: { ...wrapStyle } };
+
+      rowCells['2'] = { v: subMat, s: { ...wrapStyle } };
+
+      const castWeightForMaterial = CAST_WEIGHT_DATA[parentLabel];
+      const castWeightForSubMat = castWeightForMaterial?.[subMat];
+      sizes.forEach((size, colIndex) => {
+        const cleanSize = size.replace(/"/g, '');
+        const weight =
+          castWeightForSubMat?.[cleanSize] ?? castWeightForSubMat?.[parseFloat(cleanSize)] ?? '';
+        rowCells[`${colIndex + 3}`] = {
+          v: weight,
+          s: { vt: 2, ht: 2, cl: { rgb: '#71767a' } },
+        };
+      });
+
+      cellData[`${actualRowIndex}`] = rowCells;
+    });
+
+    // Surface Area rows after all Cast Weight rows
+    const saStartRow = subMaterials.length + 1;
+
+    const saInternalCells: Record<string, ICellData> = {};
+    saInternalCells['0'] = { v: 'Surface Area Internal', s: wrapStyle };
+    saInternalCells['1'] = { v: 'SurfaceArea(m2)', s: { ...wrapStyle } };
+    cellData[`${saStartRow}`] = saInternalCells;
+
+    const saExternalCells: Record<string, ICellData> = {};
+    saExternalCells['0'] = { v: 'Surface Area External', s: wrapStyle };
+    saExternalCells['1'] = { v: 'SurfaceArea(m2)', s: { ...wrapStyle } };
+    cellData[`${saStartRow + 1}`] = saExternalCells;
+
+    dataRowCount = subMaterials.length + 2; // cast weight rows + 2 surface area rows
+  } else if (tab === 'MATERIALS') {
+    const parentLabel = selectedNode.name;
+    const matList = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+
+    matList.forEach((subMat, rowIndex) => {
+      const actualRowIndex = rowIndex + 1;
+      cellData[`${actualRowIndex}`] = {
+        '0': { v: subMat, s: wrapStyle },
+      };
+    });
+
+    dataRowCount = matList.length;
+  }
+
   return {
     id: `${selectedBomNode.value}-${tab}`,
     appVersion: '3.0.0',
@@ -222,13 +307,14 @@ const currentWorkbookData = computed((): IWorkbookData => {
         id: 'sheet-01',
         name: tab,
         cellData: cellData,
-        rowCount: 50,
+        rowCount: 1 + dataRowCount + 1, // header + data + 1 buffer
         columnCount: Math.max(1, columns.length),
         columnHeader: {
           height: 20,
           hidden: BooleanNumber.TRUE,
         },
         columnData: columns.reduce((acc, col, i) => ({ ...acc, [i]: { w: col.width } }), {}),
+        defaultRowHeight: 35,
       },
     },
     locale: LocaleType.EN_US,
@@ -272,12 +358,67 @@ const selectedNodeData = computed(() => {
 const overheadLabel = computed(() => {
   return selectedNodeData.value ? `${selectedNodeData.value.name} Overhead %` : 'Company Overhead';
 });
+
+// Map tab name to the index of the "Unit" column (0-based), or -1 if no Unit column
+const unitColumnIndexMap: Record<string, number> = {
+  ATTRIBUTES: 1,
+};
+
+// "Base Material" column index per tab (0-based), only ATTRIBUTES has one
+const baseMaterialColumnIndexMap: Record<string, number> = {
+  ATTRIBUTES: 2,
+};
+
+function getAttributesDataRowCount(): number {
+  if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return 0;
+  const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
+  if (!selectedNode) return 0;
+  const subMaterials = SUB_MATERIALS_MAP[selectedNode.name] || [selectedNode.name];
+  return subMaterials.length + 2; // cast weight rows + 2 surface area rows
+}
+
+const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
+  const tab = activeTab.value;
+  if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return undefined;
+
+  const configs: DropdownConfig[] = [];
+
+  // 1. Unit column dropdown
+  const unitColIndex = unitColumnIndexMap[tab];
+  if (unitColIndex !== undefined && unitColIndex >= 0) {
+    const colLetter = String.fromCharCode(65 + unitColIndex);
+    const lastRow = tab === 'ATTRIBUTES' ? getAttributesDataRowCount() + 1 : 5;
+    configs.push({
+      range: `${colLetter}2:${colLetter}${lastRow}`,
+      values: ['Weight(kg)', 'SurfaceArea(m2)', 'Per Unit'],
+    });
+  }
+
+  // 2. Base Material column dropdown (filled with sub-materials)
+  const baseMatColIndex = baseMaterialColumnIndexMap[tab];
+  if (baseMatColIndex !== undefined && baseMatColIndex >= 0) {
+    const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
+    if (selectedNode) {
+      const subMaterials = SUB_MATERIALS_MAP[selectedNode.name] || [selectedNode.name];
+      if (subMaterials.length > 0) {
+        const colLetter = String.fromCharCode(65 + baseMatColIndex);
+        const lastRow = subMaterials.length + 1; // only cast weight rows have base material
+        configs.push({
+          range: `${colLetter}2:${colLetter}${lastRow}`,
+          values: subMaterials,
+        });
+      }
+    }
+  }
+
+  return configs.length > 0 ? configs : undefined;
+});
 </script>
 
 <template>
   <div class="cost-engine">
     <!-- Header -->
-    <div class="row items-center justify-between q-mb-md">
+    <div class="row items-center justify-between">
       <div class="step-header q-mb-none">
         <h4 class="step-title q-ma-none">Cost Engine Configurator</h4>
         <p class="step-description q-ma-none">
@@ -294,10 +435,15 @@ const overheadLabel = computed(() => {
     <q-separator class="q-mb-md" />
 
     <!-- Main layout -->
-    <div class="row q-col-gutter-md" style="min-height: 0">
+    <div class="row q-col-gutter-md cost-engine-body">
       <!-- LEFT: BOM Tree Panel -->
-      <div class="col-12 col-md-3">
-        <q-card flat bordered class="bom-card">
+      <div class="col-12 col-md-3" style="display: flex; flex-direction: column">
+        <q-card
+          flat
+          bordered
+          class="bom-card"
+          style="flex: 1; display: flex; flex-direction: column; min-height: 0"
+        >
           <!-- Search bar -->
           <q-card-section class="q-pa-sm">
             <q-input v-model="searchBom" dense outlined placeholder="Search BoM..." color="info">
@@ -322,7 +468,7 @@ const overheadLabel = computed(() => {
           <q-separator />
 
           <!-- Scrollable tree -->
-          <q-scroll-area class="bom-scroll">
+          <div class="bom-scroll">
             <q-card-section class="q-pa-none">
               <q-tree
                 :nodes="bomTree"
@@ -334,17 +480,31 @@ const overheadLabel = computed(() => {
                 class="bom-tree"
               >
                 <template #default-header="prop">
-                  <div class="row items-center justify-between full-width bom-node">
+                  <div
+                    class="row items-center justify-between full-width bom-node"
+                    :class="{ 'bom-node--active': prop.node.key === selectedBomNode }"
+                  >
                     <!-- LEFT SIDE -->
                     <div class="row items-center">
                       <q-icon
                         :name="prop.node.key === 'ROOT' ? 'inventory_2' : 'category'"
                         size="22px"
                         class="q-mr-sm"
-                        :color="prop.node.key === 'ROOT' ? 'accent' : 'grey-7'"
+                        :color="
+                          prop.node.key === selectedBomNode
+                            ? 'accent'
+                            : prop.node.key === 'ROOT'
+                              ? 'accent'
+                              : 'grey-7'
+                        "
                       />
                       <div>
-                        <div class="bom-node-label">{{ prop.node.label }}</div>
+                        <div
+                          class="bom-node-label"
+                          :class="{ 'bom-node-label--active': prop.node.key === selectedBomNode }"
+                        >
+                          {{ prop.node.label }}
+                        </div>
                         <div class="text-caption text-grey-6" style="font-size: 0.7rem">
                           QTY: {{ prop.node.qty }}
                         </div>
@@ -380,13 +540,18 @@ const overheadLabel = computed(() => {
                 </template>
               </q-tree>
             </q-card-section>
-          </q-scroll-area>
+          </div>
         </q-card>
       </div>
 
       <!-- RIGHT: Configuration Panel -->
-      <div class="col-12 col-md-9">
-        <q-card flat bordered class="config-card">
+      <div class="col-12 col-md-9" style="display: flex; flex-direction: column">
+        <q-card
+          flat
+          bordered
+          class="config-card"
+          style="flex: 1; display: flex; flex-direction: column; min-height: 0"
+        >
           <!-- Tabs -->
           <q-tabs
             v-model="activeTab"
@@ -407,87 +572,87 @@ const overheadLabel = computed(() => {
           <q-separator />
 
           <!-- Scrollable content area -->
-          <q-scroll-area class="config-scroll">
-            <!-- Empty state -->
-            <div v-if="!isMaterialSelected" class="empty-state">
-              <div class="column items-center justify-center">
-                <q-icon name="account_tree" size="56px" color="grey-4" />
-                <div class="text-h6 text-grey-5 q-mt-md">No BoM Node Selected</div>
-                <div class="text-body2 text-grey-6 q-mt-xs text-center" style="max-width: 300px">
-                  Select a BoM line from the tree on the left to configure
-                  {{ activeTabLabel }}
-                </div>
+
+          <!-- Empty state -->
+          <div v-if="!isMaterialSelected" class="empty-state">
+            <div class="column items-center justify-center">
+              <q-icon name="account_tree" size="56px" color="grey-4" />
+              <div class="text-h6 text-grey-5 q-mt-md">No BoM Node Selected</div>
+              <div class="text-body2 text-grey-6 q-mt-xs text-center" style="max-width: 300px">
+                Select a BoM line from the tree on the left to configure
+                {{ activeTabLabel }}
               </div>
             </div>
+          </div>
 
-            <!-- Landed Cost panel -->
-            <div v-else-if="activeTab === 'LANDED COST'" class="q-pa-md">
-              <fieldset class="usa-fieldset">
-                <legend class="usa-legend">Landed Cost Configuration</legend>
-                <div class="row q-col-gutter-lg">
-                  <div class="col-12 col-md-4">
-                    <label class="usa-label"
-                      >{{ overheadLabel }} <span class="text-negative required-star">*</span></label
-                    >
-                    <q-input
-                      v-model.number="landedCost.overhead"
-                      outlined
-                      dense
-                      type="number"
-                      suffix="%"
-                      hint="Applied to total cost"
-                      color="accent"
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <label class="usa-label"
-                      >Freight <span class="text-negative required-star">*</span></label
-                    >
-                    <q-input
-                      v-model.number="landedCost.freight"
-                      outlined
-                      dense
-                      type="number"
-                      suffix="%"
-                      hint="Logistics markup"
-                      color="accent"
-                    />
-                  </div>
-                  <div class="col-12 col-md-4">
-                    <label class="usa-label"
-                      >SG&A <span class="text-negative required-star">*</span></label
-                    >
-                    <q-input
-                      v-model.number="landedCost.sga"
-                      outlined
-                      dense
-                      type="number"
-                      suffix="%"
-                      hint="Selling, General & Admin"
-                      color="accent"
-                    />
-                  </div>
+          <!-- Landed Cost panel -->
+          <div v-else-if="activeTab === 'LANDED COST'" class="q-pa-md">
+            <fieldset class="usa-fieldset">
+              <legend class="usa-legend">Landed Cost Configuration</legend>
+              <div class="row q-col-gutter-lg">
+                <div class="col-12 col-md-4">
+                  <label class="usa-label"
+                    >{{ overheadLabel }} <span class="text-negative required-star">*</span></label
+                  >
+                  <q-input
+                    v-model.number="landedCost.overhead"
+                    outlined
+                    dense
+                    type="number"
+                    suffix="%"
+                    hint="Applied to total cost"
+                    color="accent"
+                  />
                 </div>
-              </fieldset>
+                <div class="col-12 col-md-4">
+                  <label class="usa-label"
+                    >Freight <span class="text-negative required-star">*</span></label
+                  >
+                  <q-input
+                    v-model.number="landedCost.freight"
+                    outlined
+                    dense
+                    type="number"
+                    suffix="%"
+                    hint="Logistics markup"
+                    color="accent"
+                  />
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="usa-label"
+                    >SG&A <span class="text-negative required-star">*</span></label
+                  >
+                  <q-input
+                    v-model.number="landedCost.sga"
+                    outlined
+                    dense
+                    type="number"
+                    suffix="%"
+                    hint="Selling, General & Admin"
+                    color="accent"
+                  />
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+          <!-- Sheet / Spreadsheet content -->
+          <div v-else class="sheet-wrapper q-pa-md column">
+            <div class="sheet-header q-mb-md">
+              <div class="text-subtitle1" style="font-weight: 600; color: #1b1b1b">
+                {{ currentTabInfo.title }}
+              </div>
+              <div class="text-caption text-grey-7">{{ currentTabInfo.desc }}</div>
             </div>
 
-            <!-- Sheet / Spreadsheet content -->
-            <div v-else class="sheet-wrapper q-pa-md column">
-              <div class="sheet-header q-mb-md">
-                <div class="text-subtitle1" style="font-weight: 600; color: #1b1b1b">
-                  {{ currentTabInfo.title }}
-                </div>
-                <div class="text-caption text-grey-7">{{ currentTabInfo.desc }}</div>
-              </div>
-
-              <div class="col relative-position">
-                <SupplierRateSheetU
-                  :key="`${selectedBomNode}-${activeTab}`"
-                  :initial-data="currentWorkbookData"
-                />
-              </div>
+            <div class="col relative-position">
+              <SupplierRateSheetU
+                :key="`${selectedBomNode}-${activeTab}`"
+                :initial-data="currentWorkbookData"
+                :dropdown-configs="costEngineDropdownConfigs"
+              />
             </div>
-          </q-scroll-area>
+          </div>
         </q-card>
       </div>
     </div>
@@ -504,14 +669,13 @@ const overheadLabel = computed(() => {
 
 /* ── BOM tree scroll area ── */
 .bom-scroll {
-  height: calc(100vh - 180px);
-  min-height: 300px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
-/* ── Config panel scroll area ── */
-.config-scroll {
-  height: calc(100vh - 185px);
-  min-height: 300px;
+.cost-engine-body {
+  min-height: 400px;
 }
 
 /* ── BOM tree node styles ── */
@@ -528,8 +692,18 @@ const overheadLabel = computed(() => {
 }
 
 .bom-tree :deep(.q-tree__node--selected > .q-tree__node-header) {
-  background-color: #f3e5f5;
-  border-left: 3px solid #9c27b0;
+  background-color: #ede7f6;
+  border-left: 3px solid #7b1fa2;
+  box-shadow: inset 0 0 0 1px rgba(123, 31, 162, 0.12);
+}
+
+.bom-node--active .bom-node-label {
+  color: #7b1fa2 !important;
+}
+
+.bom-node-label--active {
+  color: #7b1fa2 !important;
+  font-weight: 700;
 }
 
 .bom-node-label {
@@ -592,13 +766,30 @@ const overheadLabel = computed(() => {
   overflow: hidden;
 }
 
-/* ── Focus reset ── */
-.bom-tree :deep(.q-tree__node-header:focus) {
+/* ── Focus reset & scroll-jump prevention ── */
+.bom-tree :deep(.q-tree__node-header:focus),
+.bom-tree :deep(.q-tree__node-header:focus-visible) {
   outline: none !important;
   box-shadow: none !important;
 }
 
+/* Prevent scroll anchoring on tree nodes */
+.bom-tree :deep(.q-tree__node) {
+  overflow-anchor: none;
+}
+
 :deep(.q-btn:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Prevent tab focus from triggering scroll */
+.config-tabs :deep(.q-tab) {
+  scroll-margin: 0;
+}
+
+.config-tabs :deep(.q-tab:focus),
+.config-tabs :deep(.q-tab:focus-visible) {
   outline: none !important;
   box-shadow: none !important;
 }

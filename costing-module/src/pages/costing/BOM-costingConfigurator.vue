@@ -212,6 +212,15 @@ const isConfigurationValid = computed(() => {
 
 :deep(.q-stepper__tab) {
   transition: all 0.2s ease;
+  padding-bottom: 0px;
+}
+
+:deep(.q-stepper__step-content) {
+  padding-top: 0px;
+}
+
+:deep(.q-stepper__step-inner) {
+  padding-top: 0px;
 }
 
 :deep(.q-stepper__tab--active) {
