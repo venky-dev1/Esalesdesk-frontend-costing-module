@@ -90,7 +90,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (univerInstance.value) {
     univerInstance.value.dispose();
+    univerInstance.value = null;
   }
+  container.value = null;
+  workbook.value = null;
 });
 
 function setCellValue(range: string, value: number) {

@@ -3,7 +3,8 @@ import { ref, computed, watch } from 'vue';
 import { useMaterialsStore } from '../../stores/material';
 
 import { useProductConfigStore } from '../../stores/productConfig';
-import { SUB_MATERIALS_MAP, DEMO_DATA } from '../../constants/dummyData';
+import { SUB_MATERIALS_MAP } from '../../constants/dummyData';
+import { useSupplierRatesStore } from '../../stores/supplierRates';
 
 import SupplierRateSheetU from './SupplierRateSheetU.vue';
 import type { DropdownConfig } from './types';
@@ -17,6 +18,7 @@ const productConfigStore = useProductConfigStore();
 const selectedSizes = computed(() => productConfigStore.selectedSizes);
 
 const materialsStore = useMaterialsStore();
+const supplierRatesStore = useSupplierRatesStore();
 
 const selectedMaterial = ref(materialsStore.materials[0]?.name || '');
 
@@ -148,6 +150,7 @@ const DEFAULT_WORKBOOK_DATA: IWorkbookData = {
   styles: {},
 };
 
+
 const univerData = computed((): IWorkbookData => {
   if (!selectedMaterial.value || !displayProcessTab.value || !displaySupplierTab.value)
     return DEFAULT_WORKBOOK_DATA;
@@ -204,29 +207,23 @@ const univerData = computed((): IWorkbookData => {
     const rowNum = `${rowIndex + 1}`;
     cellData[rowNum] = {
       '0': { v: subMat, s: wrapStyle },
-      '1': { v: defaultUnit, s: centerStyle }, // <--- Use Dynamic Default Here
+      '1': { v: defaultUnit, s: centerStyle },
     };
     sizes.forEach((size, colIndex) => {
       let cellValue: number | string = '';
-      const cleanSize = size.replace(/"/g, '');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const basePriceData = (DEMO_DATA as any).BASE_PRICE?.[selectedMaterial.value];
-      if (basePriceData) {
-        const materialRates = basePriceData[subMat];
-        if (materialRates) {
-          // Check exact match or number match
-          let rate = materialRates[cleanSize] || materialRates[parseFloat(cleanSize)];
 
-          if (rate !== undefined) {
-            const isBodyCategory = selectedMaterial.value === 'BODY';
-            const isInvestment = displayProcessTab.value === 'INVESTMENT CASTING';
-            if (isBodyCategory && isInvestment) {
-              rate = rate * 1.5;
-            }
-            cellValue = rate;
-          }
-        }
+      const cleanSize = size.replace(/"/g, '');
+      const rate = supplierRatesStore.getRate(
+        selectedMaterial.value,
+        subMat,
+        cleanSize,
+        displayProcessTab.value!,
+        displaySupplierTab.value!,
+      );
+      if (rate !== undefined) {
+        cellValue = rate;
       }
+
       cellData[rowNum][`${colIndex + 2}`] = {
         v: cellValue,
         s: { vt: 2, ht: 2, cl: { rgb: '#71767a' } },

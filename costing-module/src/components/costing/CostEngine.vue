@@ -8,9 +8,11 @@ import type { DropdownConfig } from './types';
 import type { IWorkbookData, ICellData } from '@univerjs/core';
 import { LocaleType, BooleanNumber } from '@univerjs/core';
 import { SUB_MATERIALS_MAP, CAST_WEIGHT_DATA } from 'src/constants/dummyData';
+import { useSupplierRatesStore } from '../../stores/supplierRates';
 
 const materialsStore = useMaterialsStore();
 const configStore = useProductConfigStore();
+const supplierRatesStore = useSupplierRatesStore();
 
 const searchBom = ref('');
 const activeTab = ref('ATTRIBUTES');
@@ -408,6 +410,37 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
           values: subMaterials,
         });
       }
+    }
+  }
+
+  // 3. MATERIALS tab dynamic supplier dropdowns
+  if (tab === 'MATERIALS') {
+    const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
+    if (selectedNode) {
+      const subMaterials = SUB_MATERIALS_MAP[selectedNode.name] || [selectedNode.name];
+      const sizes = configStore.selectedSizes || ['2', '4', '6'];
+
+      subMaterials.forEach((subMat, rowIdx) => {
+        sizes.forEach((size, colIdx) => {
+          const cleanSize = size.replace(/"/g, '');
+          const entries = supplierRatesStore.getEntriesForCell(
+            selectedNode.name,
+            subMat,
+            cleanSize,
+          );
+
+          const options = entries.map((e) => `${e.processType} | ${e.supplier} | ₹${e.rate}`);
+
+          if (options.length > 0) {
+            const colLetter = String.fromCharCode(64 + colIdx + 2);
+            const rowNum = rowIdx + 2;
+            configs.push({
+              range: `${colLetter}${rowNum}`,
+              values: options,
+            });
+          }
+        });
+      });
     }
   }
 

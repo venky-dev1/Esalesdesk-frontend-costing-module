@@ -47,6 +47,20 @@ export const SUB_MATERIALS_MAP: Record<string, string[]> = {
   ],
 };
 
+export const VALID_DEMO_COMBOS: Record<string, Record<string, string[]>> = {
+  BODY: {
+    'SAND CAST': ['IRONCORE CASTINGS PVT. LTD.'],
+    'INVESTMENT CASTING': ['PRIMECAST ENGINEERING'],
+  },
+  DISC: { 'SAND CAST': ['STEELFLOW COMPONENTS'] },
+  SEAT: { 'BROUGHT OUT': ['WAFERSEAL TECHNOLOGIES'] },
+  STEM: { 'BROUGHT OUT': ['FLOWAXIS CONTROLS'] },
+  COMPONENTS: { 'BROUGHT OUT': ['SLIMLINE VALVE SYSTEMS'] },
+  PACKING: { 'BROUGHT OUT': ['THINBODY FLOW SOLUTIONS'] },
+  OPERATOR: { 'BROUGHT OUT': ['GATELINE VALVES'] },
+};
+
+
 // Helper to determine the Unit column based on Material Type
 export const getUnitForMaterial = (materialName: string): string => {
   const buyItems = ['SEAT', 'STEM', 'PACKING', 'OPERATOR', 'COMPONENTS'];
