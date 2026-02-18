@@ -54,18 +54,18 @@ const processTypeOptions: SelectOption[] = [
 ];
 
 const makeSupplierOptions: SelectOption[] = [
-  { label: 'IronCore Castings Pvt. Ltd.', value: 'IRONCORE' },
-  { label: 'PrimeCast Engineering', value: 'PRIMECAST' },
+  { label: 'IronCore Castings Pvt. Ltd.', value: 'IRONCORE CASTING PVT. LTD.' },
+  { label: 'PrimeCast Engineering', value: 'PRIMECAST ENGINEERING' },
 ];
 
 const buySupplierMap: Record<string, SelectOption[]> = {
   SEAT: [
-    { label: 'Seat Traders', value: 'SEAT_TRADERS' },
-    { label: 'Universal Seals', value: 'UNIVERSAL_SEALS' },
+    { label: 'Seat Traders', value: 'SEAT TRADERS' },
+    { label: 'Universal Seals', value: 'UNIVERSAL SEALS' },
   ],
-  STEM: [{ label: 'Stem Supplies Ltd.', value: 'STEM_SUPPLIES' }],
-  PACKING: [{ label: 'Packing World', value: 'PACKING_WORLD' }],
-  OPERATOR: [{ label: 'Operator Equipments', value: 'OP_EQUIP' }],
+  STEM: [{ label: 'Stem Supplies Ltd.', value: 'STEM SUPPLIES LTD.' }],
+  PACKING: [{ label: 'Packing World', value: 'PACKING WORLD' }],
+  OPERATOR: [{ label: 'Operator Equipments', value: 'OPERATOR EQUIP' }],
 };
 
 const activeSupplierOptions = computed(() => {
@@ -91,7 +91,13 @@ watch(
 
     // Handle process based on material type
     if (currentMaterial.value?.type === 'BUY') {
-      selectedProcessType.value = 'BROUGHT';
+      if (currentMaterial.value.name === 'PACKING') {
+        selectedProcessType.value = 'PACKING';
+      } else if (currentMaterial.value.name === 'OPERATOR') {
+        selectedProcessType.value = 'OPERATOR';
+      } else {
+        selectedProcessType.value = 'BROUGHT OUT';
+      }
     } else {
       selectedProcessType.value = null;
     }
@@ -123,7 +129,8 @@ watch(
 function addSupplierProcess() {
   if (!currentMaterial.value || !selectedSupplier.value) return;
 
-  const processType = currentMaterial.value.type === 'BUY' ? 'BROUGHT' : selectedProcessType.value;
+  const processType =
+    currentMaterial.value.type === 'BUY' ? 'BROUGHT OUT' : selectedProcessType.value;
 
   if (!processType) return;
 
@@ -149,7 +156,6 @@ const DEFAULT_WORKBOOK_DATA: IWorkbookData = {
   sheetOrder: [],
   styles: {},
 };
-
 
 const univerData = computed((): IWorkbookData => {
   if (!selectedMaterial.value || !displayProcessTab.value || !displaySupplierTab.value)
@@ -520,8 +526,8 @@ function onCellEdited(payload: { row: number; col: number; value: string | numbe
           class="material-section"
           v-model="selectedMaterial"
           dense
-          active-color="#fff"
-          indicator-color="indigo"
+          active-color="deep-purple-14"
+          indicator-color="deep-purple-14"
           align="left"
         >
           <q-tab

@@ -19,7 +19,12 @@ import UniverPresetSheetsDataValidationEnUS from '@univerjs/preset-sheets-data-v
 import '@univerjs/preset-sheets-data-validation/lib/index.css';
 
 // 3. Types
-import { UniverInstanceType, type IWorkbookData, type Univer, type IDisposable } from '@univerjs/core';
+import {
+  UniverInstanceType,
+  type IWorkbookData,
+  type Univer,
+  type IDisposable,
+} from '@univerjs/core';
 import { SetRangeValuesMutation } from '@univerjs/sheets';
 import type { ISetRangeValuesMutationParams } from '@univerjs/sheets';
 import type { DropdownConfig } from './types';
@@ -95,22 +100,24 @@ onMounted(() => {
   }
 
   // Listen for cell value changes and emit cellEdited events
-  commandDisposable = univerAPI.onCommandExecuted((commandInfo: { id: string; params?: unknown }) => {
-    if (commandInfo.id !== SetRangeValuesMutation.id) return;
-    const params = commandInfo.params as ISetRangeValuesMutationParams;
-    if (!params?.cellValue) return;
+  commandDisposable = univerAPI.onCommandExecuted(
+    (commandInfo: { id: string; params?: unknown }) => {
+      if (commandInfo.id !== SetRangeValuesMutation.id) return;
+      const params = commandInfo.params as ISetRangeValuesMutationParams;
+      if (!params?.cellValue) return;
 
-    // cellValue is Record<rowIndex, Record<colIndex, ICellData>>
-    for (const [rowStr, cols] of Object.entries(params.cellValue)) {
-      const row = Number(rowStr);
-      if (!cols || typeof cols !== 'object') continue;
-      for (const [colStr, cellData] of Object.entries(cols as Record<string, { v?: unknown }>)) {
-        const col = Number(colStr);
-        const value = cellData?.v ?? null;
-        emit('cellEdited', { row, col, value: value as string | number | null });
+      // cellValue is Record<rowIndex, Record<colIndex, ICellData>>
+      for (const [rowStr, cols] of Object.entries(params.cellValue)) {
+        const row = Number(rowStr);
+        if (!cols || typeof cols !== 'object') continue;
+        for (const [colStr, cellData] of Object.entries(cols as Record<string, { v?: unknown }>)) {
+          const col = Number(colStr);
+          const value = cellData?.v ?? null;
+          emit('cellEdited', { row, col, value: value as string | number | null });
+        }
       }
-    }
-  });
+    },
+  );
 });
 
 onBeforeUnmount(() => {

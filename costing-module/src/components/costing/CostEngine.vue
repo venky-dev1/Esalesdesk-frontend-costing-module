@@ -7,7 +7,7 @@ import SupplierRateSheetU from './SupplierRateSheetU.vue';
 import type { DropdownConfig } from './types';
 import type { IWorkbookData, ICellData } from '@univerjs/core';
 import { LocaleType, BooleanNumber } from '@univerjs/core';
-import { SUB_MATERIALS_MAP, CAST_WEIGHT_DATA } from 'src/constants/dummyData';
+import { SUB_MATERIALS_MAP, CAST_WEIGHT_DATA, OperationCostData } from 'src/constants/dummyData';
 import { useSupplierRatesStore } from '../../stores/supplierRates';
 
 const materialsStore = useMaterialsStore();
@@ -196,6 +196,7 @@ const getColumnsForTab = (tabName: string): { title: string; width: number }[] =
   }
 };
 
+let dataRowCount = 0;
 const currentWorkbookData = computed((): IWorkbookData => {
   if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return getEmptyWorkbook();
 
@@ -241,8 +242,6 @@ const currentWorkbookData = computed((): IWorkbookData => {
     headerRowData[`${index}`] = { v: col.title, s: headerStyle };
   });
   cellData['0'] = headerRowData;
-
-  let dataRowCount = 0;
 
   if (tab === 'ATTRIBUTES') {
     const parentLabel = selectedNode.name;
@@ -321,14 +320,44 @@ const currentWorkbookData = computed((): IWorkbookData => {
   } else if (tab === 'OPERATIONS') {
     const parentLabel = selectedNode.name;
     const matList = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+
+    let currentRow = 1;
+
     matList.forEach((subMat, rowIndex) => {
-      const actualRowIndex = rowIndex + 1;
-      const rowCells: Record<string, ICellData> = {
-        '0': { v: subMat, s: wrapStyle },
-      };
-      cellData[`${actualRowIndex}`] = rowCells;
+      const componentOps = OperationCostData[parentLabel];
+      const materialOps = componentOps ? componentOps[subMat] : null;
+
+      if (!materialOps) {
+        cellData[`${rowIndex + 1}`] = {
+          '0': { v: subMat, s: wrapStyle },
+          '1': { v: 'No Ops Data', s: { ...wrapStyle, fs: 9, cl: { rgb: '#999999' } } },
+        };
+        currentRow++;
+        return;
+      }
+      Object.entries(materialOps).forEach(([opName, sizeCosts]) => {
+        const rowCells: Record<string, ICellData> = {};
+        rowCells['0'] = {
+          v: subMat,
+          s: { ...wrapStyle },
+        };
+        rowCells['1'] = { v: opName.replace(/_/g, ' '), s: wrapStyle };
+        rowCells['2'] = { v: 'Per Unit', s: { ...wrapStyle, ht: 2 } };
+        sizes.forEach((size, colIndex) => {
+          const cleanSize = size.replace(/"/g, '');
+
+          const cost = sizeCosts[cleanSize] || sizeCosts[parseFloat(cleanSize)] || 0;
+
+          rowCells[`${colIndex + 3}`] = {
+            v: cost ? `${cost}` : '-',
+            s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, fs: 10 },
+          };
+        });
+        cellData[`${currentRow}`] = rowCells;
+        currentRow++;
+      });
     });
-    dataRowCount = matList.length;
+    dataRowCount = currentRow - 1;
   }
 
   return {
@@ -394,6 +423,7 @@ const overheadLabel = computed(() => {
 // Map tab name to the index of the "Unit" column (0-based), or -1 if no Unit column
 const unitColumnIndexMap: Record<string, number> = {
   ATTRIBUTES: 1,
+  OPERATIONS: 2,
 };
 
 // "Base Material" column index per tab (0-based), only ATTRIBUTES has one
@@ -409,20 +439,35 @@ function getAttributesDataRowCount(): number {
   return subMaterials.length + 2; // cast weight rows + 2 surface area rows
 }
 
+const unitOptionsByTab: Record<string, string[]> = {
+  ATTRIBUTES: ['Weight(kg)', 'SurfaceArea(m2)', 'Per Unit'],
+  OPERATIONS: ['Per Kg', 'Per m2', 'Per Unit'],
+};
+
 const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
   const tab = activeTab.value;
+
   if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return undefined;
 
   const configs: DropdownConfig[] = [];
 
   // 1. Unit column dropdown
   const unitColIndex = unitColumnIndexMap[tab];
+
   if (unitColIndex !== undefined && unitColIndex >= 0) {
     const colLetter = String.fromCharCode(65 + unitColIndex);
-    const lastRow = tab === 'ATTRIBUTES' ? getAttributesDataRowCount() + 1 : 5;
+
+    let lastRow = 5;
+
+    if (tab === 'ATTRIBUTES') {
+      lastRow = getAttributesDataRowCount() + 1;
+    } else if (tab === 'OPERATIONS') {
+      lastRow = dataRowCount + 1;
+    }
+
     configs.push({
       range: `${colLetter}2:${colLetter}${lastRow}`,
-      values: ['Weight(kg)', 'SurfaceArea(m2)', 'Per Unit'],
+      values: unitOptionsByTab[tab] || [],
     });
   }
 
