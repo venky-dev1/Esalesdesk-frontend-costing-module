@@ -7,7 +7,12 @@ import SupplierRateSheetU from './SupplierRateSheetU.vue';
 import type { DropdownConfig } from './types';
 import type { IWorkbookData, ICellData } from '@univerjs/core';
 import { LocaleType, BooleanNumber } from '@univerjs/core';
-import { SUB_MATERIALS_MAP, CAST_WEIGHT_DATA, OperationCostData } from 'src/constants/dummyData';
+import {
+  SUB_MATERIALS_MAP,
+  CAST_WEIGHT_DATA,
+  OperationCostData,
+  TestingCostData,
+} from 'src/constants/dummyData';
 import { useSupplierRatesStore } from '../../stores/supplierRates';
 
 const materialsStore = useMaterialsStore();
@@ -196,6 +201,20 @@ const getColumnsForTab = (tabName: string): { title: string; width: number }[] =
   }
 };
 
+function generateToolingForNode(label: string, sizes: string[]) {
+  return ['Pattern Cost', 'Core Box', 'Tooling Cost', 'Amortization Cost'].map((t, k) => {
+    const row = [t, 'Per Unit', '1000', '2025-01-01', '2026-01-01', '500'];
+
+    sizes.forEach((s, i) => {
+      const value = 50000 + ((i * k) ^ (2 + 1)) * (i + 1) * 91 * 5;
+
+      row.push(Math.round(value).toString());
+    });
+
+    return row;
+  });
+}
+
 let dataRowCount = 0;
 const currentWorkbookData = computed((): IWorkbookData => {
   if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return getEmptyWorkbook();
@@ -358,6 +377,51 @@ const currentWorkbookData = computed((): IWorkbookData => {
       });
     });
     dataRowCount = currentRow - 1;
+  } else if (tab === 'TESTING') {
+    const parentLabel = selectedNode.name;
+    const componentTests = TestingCostData[parentLabel];
+
+    if (!componentTests) {
+      dataRowCount = 0;
+    } else {
+      let currentRow = 1;
+      Object.entries(componentTests).forEach(([testName, sizeCosts]) => {
+        const rowCells: Record<string, ICellData> = {};
+        rowCells['0'] = { v: testName, s: wrapStyle };
+        rowCells['1'] = { v: 'Per Unit', s: { ...wrapStyle, ht: 2 } };
+        sizes.forEach((size, colIndex) => {
+          const cleanSize = size.replace(/"/g, '');
+          const cost = sizeCosts[cleanSize] ?? sizeCosts[parseFloat(cleanSize)] ?? 0;
+          rowCells[`${colIndex + 2}`] = {
+            v: cost ? `${cost}` : '-',
+            s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, fs: 10 },
+          };
+        });
+        cellData[`${currentRow}`] = rowCells;
+        currentRow++;
+      });
+      dataRowCount = currentRow - 1;
+    }
+  } else if (tab === 'TOOLING') {
+    let currentRow = 1;
+
+    const toolingRows = generateToolingForNode(selectedNode.name, sizes);
+
+    toolingRows.forEach((rowArr) => {
+      const rowCells: Record<string, ICellData> = {};
+
+      rowArr.forEach((value, colIndex) => {
+        rowCells[`${colIndex}`] = {
+          v: value,
+          s: wrapStyle,
+        };
+      });
+
+      cellData[`${currentRow}`] = rowCells;
+      currentRow++;
+    });
+
+    dataRowCount = currentRow - 1;
   }
 
   return {
@@ -424,6 +488,8 @@ const overheadLabel = computed(() => {
 const unitColumnIndexMap: Record<string, number> = {
   ATTRIBUTES: 1,
   OPERATIONS: 2,
+  TESTING: 1,
+  TOOLING: 1,
 };
 
 // "Base Material" column index per tab (0-based), only ATTRIBUTES has one
@@ -442,6 +508,8 @@ function getAttributesDataRowCount(): number {
 const unitOptionsByTab: Record<string, string[]> = {
   ATTRIBUTES: ['Weight(kg)', 'SurfaceArea(m2)', 'Per Unit'],
   OPERATIONS: ['Per Kg', 'Per m2', 'Per Unit'],
+  TESTING: ['Per Kg', 'Per m2', 'Per Unit'],
+  TOOLING: ['Per Kg', 'Per m2', 'Per Unit'],
 };
 
 const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
@@ -463,6 +531,10 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
       lastRow = getAttributesDataRowCount() + 1;
     } else if (tab === 'OPERATIONS') {
       lastRow = dataRowCount + 1;
+    } else if (tab === 'TESTING') {
+      lastRow = dataRowCount + 1;
+    } else if (tab === 'TOOLING') {
+      lastRow = dataRowCount + 1;
     }
 
     configs.push({
@@ -474,8 +546,8 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
   // 2. Base Material column dropdown (filled with sub-materials)
   const baseMatColIndex = baseMaterialColumnIndexMap[tab];
   if (baseMatColIndex !== undefined && baseMatColIndex >= 0) {
-    const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
-    if (selectedNode) {
+    if (selectedNodeData.value) {
+      const selectedNode = selectedNodeData.value;
       const subMaterials = SUB_MATERIALS_MAP[selectedNode.name] || [selectedNode.name];
       if (subMaterials.length > 0) {
         const colLetter = String.fromCharCode(65 + baseMatColIndex);
@@ -490,8 +562,8 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
 
   // 3. MATERIALS tab dynamic supplier dropdowns
   if (tab === 'MATERIALS') {
-    const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
-    if (selectedNode) {
+    if (selectedNodeData.value) {
+      const selectedNode = selectedNodeData.value;
       const subMaterials = SUB_MATERIALS_MAP[selectedNode.name] || [selectedNode.name];
       const sizes = configStore.selectedSizes || ['2', '4', '6'];
 
