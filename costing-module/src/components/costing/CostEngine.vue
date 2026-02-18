@@ -2,9 +2,8 @@
 import { ref, computed } from 'vue';
 import { useMaterialsStore } from '../../stores/material';
 import { useProductConfigStore } from '../../stores/productConfig';
-import type { Material } from '../../stores/material';
+import type { Material, DropdownConfig, BomNode } from '../../types/types';
 import SupplierRateSheetU from './SupplierRateSheetU.vue';
-import type { DropdownConfig } from './types';
 import type { IWorkbookData, ICellData } from '@univerjs/core';
 import { LocaleType, BooleanNumber } from '@univerjs/core';
 import {
@@ -39,12 +38,7 @@ const categoryTabs = [
   { name: 'LANDED COST', icon: 'receipt_long', label: 'Landed Cost' },
   { name: 'PREVIEW', icon: 'analytics', label: 'Preview' },
 ];
-interface BomNode {
-  label: string;
-  key: string;
-  qty: number;
-  children?: BomNode[];
-}
+
 
 const buildTree = (materials: Material[]): BomNode[] => {
   return materials.map((m) => ({

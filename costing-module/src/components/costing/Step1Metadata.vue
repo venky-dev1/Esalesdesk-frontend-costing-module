@@ -177,197 +177,233 @@ watch(
 
 <template>
   <div class="step1-metadata">
-    <!-- Header -->
+    <!-- ── Header ── -->
     <div class="step-header q-mb-md">
-      <h4 class="step-title">Step 1: Product Metadata Setup</h4>
+      <h4 class="step-title">Product Metadata Setup</h4>
       <p class="step-description">
         Define product name, series, available sizes, and pricing factors
       </p>
     </div>
+    <q-separator class="q-mb-md" />
 
-    <!-- Basic Information Fieldset -->
-    <fieldset class="usa-fieldset q-mb-md">
-      <legend class="usa-legend">Basic Information</legend>
+    <!-- ── Basic Information ── -->
+    <q-card flat bordered class="section-card q-mb-md">
+      <q-card-section class="section-header">
+        <q-icon name="info_outline" size="20px" color="primary" class="q-mr-sm" />
+        <span class="section-title">Basic Information</span>
+      </q-card-section>
 
-      <!-- Product Make -->
-      <div class="q-mb-md">
-        <label class="usa-label">Product Make</label>
-        <q-select
-          v-model="productMake"
-          :options="filteredProductMakeOptions"
-          outlined
-          dense
-          clearable
-          class="full-width"
-          use-input
-          @filter="filterProductMake"
-          input-debounce="200"
-          rounded
-        />
-      </div>
+      <q-separator />
 
-      <!-- Product Portfolio & Offer Template Row -->
-      <div class="row q-col-gutter-md q-mb-md">
-        <div class="col-12 col-md-6">
-          <label class="usa-label">Product Portfolio</label>
+      <q-card-section>
+        <!-- Product Make (full width) -->
+        <div class="q-mb-md">
+          <label class="usa-label">Product Make</label>
           <q-select
-            v-model="productPortfolio"
-            :options="filteredProductPortfolioOptions"
+            v-model="productMake"
+            :options="filteredProductMakeOptions"
             outlined
             dense
             clearable
+            class="full-width"
             use-input
+            @filter="filterProductMake"
             input-debounce="200"
-            @filter="filterProductPortfolio"
-            rounded
           />
         </div>
-        <div class="col-12 col-md-6">
-          <label class="usa-label">Offer template 1</label>
-          <q-select
-            v-model="offerTemplate"
-            :options="filteredOfferTemplateOptions"
-            outlined
-            dense
-            clearable
-            use-input
-            input-debounce="200"
-            @filter="filterOfferTemplate"
-            rounded
-          />
-        </div>
-      </div>
 
-      <!-- Product -->
-      <div class="row q-col-gutter-md q-mb-md">
-        <div class="col-12 col-md-6">
-          <label class="usa-label"
-            >Product <span class="text-negative required-star">*</span></label
-          >
-          <q-select
-            v-model="product"
-            :options="filteredProductOptions"
-            outlined
-            dense
-            clearable
-            use-input
-            input-debounce="200"
-            @filter="filterProduct"
-            rounded
-          />
-        </div>
-      </div>
-    </fieldset>
-
-    <!-- Series Type Fieldset -->
-    <fieldset class="usa-fieldset q-mb-md">
-      <legend class="usa-legend">Series Type</legend>
-
-      <div class="row q-col-gutter-md q-mb-md">
-        <div class="col-12 col-md-6">
-          <label class="usa-label">Series <span class="text-negative required-star">*</span></label>
-          <q-select
-            v-model="series"
-            :options="filteredSeriesOptions"
-            outlined
-            dense
-            clearable
-            use-input
-            input-debounce="200"
-            @filter="filterSeries"
-            rounded
-          />
-        </div>
-      </div>
-    </fieldset>
-
-    <!-- Available Sizes Fieldset -->
-    <fieldset class="usa-fieldset q-mb-md">
-      <legend class="usa-legend">Available Sizes</legend>
-
-      <div class="q-mb-md">
-        <div
-          v-for="(row, rowIndex) in sizeRows"
-          :key="rowIndex"
-          class="row q-col-gutter-md q-mb-sm"
-        >
-          <div v-for="size in row" :key="size" class="col-4">
-            <q-checkbox
-              v-model="selectedSizes"
-              :val="size"
-              :label="size"
-              color="primary"
+        <!-- Product Portfolio & Offer Template -->
+        <div class="row q-col-gutter-md q-mb-md">
+          <div class="col-12 col-md-6">
+            <label class="usa-label">Product Portfolio</label>
+            <q-select
+              v-model="productPortfolio"
+              :options="filteredProductPortfolioOptions"
+              outlined
               dense
-              class="q-ma-sm"
+              clearable
+              use-input
+              input-debounce="200"
+              @filter="filterProductPortfolio"
+            />
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="usa-label">Offer Template</label>
+            <q-select
+              v-model="offerTemplate"
+              :options="filteredOfferTemplateOptions"
+              outlined
+              dense
+              clearable
+              use-input
+              input-debounce="200"
+              @filter="filterOfferTemplate"
             />
           </div>
         </div>
-      </div>
 
-      <div class="row q-gutter-sm">
+        <!-- Product -->
+        <div class="row q-col-gutter-md">
+          <div class="col-12 col-md-6">
+            <label class="usa-label"
+              >Product <span class="text-negative required-star">*</span></label
+            >
+            <q-select
+              v-model="product"
+              :options="filteredProductOptions"
+              outlined
+              dense
+              clearable
+              use-input
+              input-debounce="200"
+              @filter="filterProduct"
+            />
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+
+    <!-- ── Series Type ── -->
+    <q-card flat bordered class="section-card q-mb-md">
+      <q-card-section class="section-header">
+        <q-icon name="category" size="20px" color="primary" class="q-mr-sm" />
+        <span class="section-title">Series Type</span>
+      </q-card-section>
+
+      <q-separator />
+
+      <q-card-section>
+        <div class="row q-col-gutter-md">
+          <div class="col-12 col-md-6">
+            <label class="usa-label"
+              >Series <span class="text-negative required-star">*</span></label
+            >
+            <q-select
+              v-model="series"
+              :options="filteredSeriesOptions"
+              outlined
+              dense
+              clearable
+              use-input
+              input-debounce="200"
+              @filter="filterSeries"
+            />
+          </div>
+        </div>
+      </q-card-section>
+    </q-card>
+
+    <!-- ── Available Sizes ── -->
+    <q-card flat bordered class="section-card q-mb-md">
+      <q-card-section class="section-header">
+        <q-icon name="straighten" size="20px" color="primary" class="q-mr-sm" />
+        <span class="section-title">Available Sizes</span>
+        <q-badge
+          v-if="selectedSizes.length"
+          color="primary"
+          :label="`${selectedSizes.length} selected`"
+          class="q-ml-sm"
+        />
+      </q-card-section>
+
+      <q-separator />
+
+      <q-card-section>
+        <div class="size-grid q-mb-md">
+          <div
+            v-for="(row, rowIndex) in sizeRows"
+            :key="rowIndex"
+            class="row q-col-gutter-md q-mb-xs"
+          >
+            <div v-for="size in row" :key="size" class="col-4">
+              <q-checkbox v-model="selectedSizes" :val="size" :label="size" color="primary" dense />
+            </div>
+          </div>
+        </div>
+
         <div class="row q-gutter-sm">
           <q-btn
             label="Select All"
             unelevated
-            class="col min-btn usa-button--brand-secondary"
+            class="action-btn usa-button--brand-secondary"
             @click="selectAll"
           />
-          <q-btn label="Clear All" color="grey-7" outline class="col min-btn" @click="clearAll" />
+          <q-btn label="Clear All" color="grey-7" outline class="action-btn" @click="clearAll" />
         </div>
-      </div>
-    </fieldset>
+      </q-card-section>
+    </q-card>
 
-    <!-- Pricing Factors Fieldset -->
-    <fieldset class="usa-fieldset q-mb-md">
-      <legend class="usa-legend">Pricing Factors</legend>
+    <!-- ── Pricing Factors ── -->
+    <q-card flat bordered class="section-card q-mb-md">
+      <q-card-section class="section-header">
+        <q-icon name="payments" size="20px" color="primary" class="q-mr-sm" />
+        <span class="section-title">Pricing Factors</span>
+      </q-card-section>
 
-      <div class="row q-col-gutter-md q-mb-md">
-        <div class="col-12 col-md-6">
-          <label class="usa-label"
-            >LP Factor <span class="text-negative required-star">*</span></label
-          >
-          <q-input
-            v-model.number="lpFactor"
-            type="number"
-            outlined
-            dense
-            rounded
-            placeholder="e.g., 2.10"
-            :rules="[(val) => val > 0 || 'LP Factor must be greater than 0']"
-          />
+      <q-separator />
+
+      <q-card-section>
+        <div class="row q-col-gutter-md">
+          <div class="col-12 col-md-6">
+            <label class="usa-label"
+              >LP Factor <span class="text-negative required-star">*</span></label
+            >
+            <q-input
+              v-model.number="lpFactor"
+              type="number"
+              outlined
+              dense
+              placeholder="e.g., 2.10"
+              hint="Multiplier applied to the list price"
+              :rules="[(val: number) => val > 0 || 'LP Factor must be greater than 0']"
+            />
+          </div>
         </div>
-      </div>
-    </fieldset>
+      </q-card-section>
+    </q-card>
   </div>
 </template>
 
 <style scoped>
-/* Header - USWDS */
-
-/* USWDS Fieldset */
-.usa-fieldset {
-  border: 1px solid #c9c9c9;
-  border-radius: 4px;
-  padding: 16px 24px;
-  margin: 0;
-  background: #ffffff;
+/* ── Section Cards ── */
+.section-card {
+  border-color: #dfe1e2;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
-.usa-legend {
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: #71767a;
-  padding: 0 8px;
-  background: #ffffff;
+.section-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
 }
 
-:deep(.q-checkbox__label) {
-  font-size: 1rem;
+.section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
   color: #1b1b1b;
 }
 
-.min-btn {
-  min-width: 140px;
+/* ── Checkbox grid ── */
+.size-grid :deep(.q-checkbox) {
+  padding: 4px 0;
+}
+
+.size-grid :deep(.q-checkbox__label) {
+  font-size: 0.9375rem;
+  color: #1b1b1b;
+}
+
+/* ── Buttons ── */
+.action-btn {
+  min-width: 120px;
   text-transform: none !important;
+  font-weight: 500;
+}
+
+/* ── Select overrides ── */
+:deep(.q-field--outlined .q-field__control) {
+  border-radius: 4px;
 }
 </style>

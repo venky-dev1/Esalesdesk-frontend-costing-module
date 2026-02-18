@@ -1,18 +1,8 @@
 import { defineStore } from 'pinia';
+import type { ProcessSourcing, Material } from '../types/types';
 
-export interface ProcessSourcing {
-  processType: string;
-  suppliers: string[];
-}
-
-export interface Material {
-  id: string;
-  name: string;
-  qty: number;
-  type: 'MAKE' | 'BUY' | null;
-  sourcing: ProcessSourcing[];
-  children?: Material[];
-}
+// Re-export for backward compatibility
+export type { ProcessSourcing, Material };
 
 export const useMaterialsStore = defineStore('materials', {
   state: () => ({

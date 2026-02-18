@@ -1,28 +1,9 @@
 import { defineStore } from 'pinia';
 import { SUB_MATERIALS_MAP, DEMO_DATA, VALID_DEMO_COMBOS } from '../constants/dummyData';
+import type { RateEntry, MaterialRates } from '../types/types';
 
-/**
- * A single rate entry for a given material + subMaterial + size cell.
- */
-export interface RateEntry {
-  supplier: string;
-  processType: string;
-  rate: number;
-}
-
-/**
- * Nested structure:
- *   material → subMaterial → size → RateEntry[]
- *
- * Example:
- *   rates['BODY']['CI']['2'] = [
- *     { supplier: 'IRONCORE CASTINGS PVT. LTD.', processType: 'SAND CAST', rate: 104 },
- *     { supplier: 'PRIMECAST ENGINEERING', processType: 'INVESTMENT CASTING', rate: 156 },
- *   ]
- */
-type SizeRates = Record<string, RateEntry[]>;
-type SubMaterialRates = Record<string, SizeRates>;
-type MaterialRates = Record<string, SubMaterialRates>;
+// Re-export for backward compatibility
+export type { RateEntry };
 
 /**
  * Build initial rates from DEMO_DATA + VALID_DEMO_COMBOS.
@@ -79,40 +60,40 @@ export const useSupplierRatesStore = defineStore('supplierRates', {
     /** Get all rate entries for a cell (material + subMaterial + size). */
     getEntriesForCell:
       (state) =>
-      (material: string, subMaterial: string, size: string): RateEntry[] => {
-        return state.rates[material]?.[subMaterial]?.[size] || [];
-      },
+        (material: string, subMaterial: string, size: string): RateEntry[] => {
+          return state.rates[material]?.[subMaterial]?.[size] || [];
+        },
 
     /** Get a single rate for a specific process+supplier combo. */
     getRate:
       (state) =>
-      (
-        material: string,
-        subMaterial: string,
-        size: string,
-        processType: string,
-        supplier: string,
-      ): number | undefined => {
-        const entries = state.rates[material]?.[subMaterial]?.[size];
-        if (!entries) return undefined;
-        return entries.find((e) => e.processType === processType && e.supplier === supplier)?.rate;
-      },
+        (
+          material: string,
+          subMaterial: string,
+          size: string,
+          processType: string,
+          supplier: string,
+        ): number | undefined => {
+          const entries = state.rates[material]?.[subMaterial]?.[size];
+          if (!entries) return undefined;
+          return entries.find((e) => e.processType === processType && e.supplier === supplier)?.rate;
+        },
 
     /** Check if any rate data exists for a material + process + supplier combo. */
     hasRatesForCombo:
       (state) =>
-      (material: string, processType: string, supplier: string): boolean => {
-        const subMats = state.rates[material];
-        if (!subMats) return false;
-        for (const sizeRates of Object.values(subMats)) {
-          for (const entries of Object.values(sizeRates)) {
-            if (entries.some((e) => e.processType === processType && e.supplier === supplier)) {
-              return true;
+        (material: string, processType: string, supplier: string): boolean => {
+          const subMats = state.rates[material];
+          if (!subMats) return false;
+          for (const sizeRates of Object.values(subMats)) {
+            for (const entries of Object.values(sizeRates)) {
+              if (entries.some((e) => e.processType === processType && e.supplier === supplier)) {
+                return true;
+              }
             }
           }
-        }
-        return false;
-      },
+          return false;
+        },
   },
 
   actions: {

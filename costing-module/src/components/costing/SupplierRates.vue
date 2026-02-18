@@ -7,7 +7,7 @@ import { SUB_MATERIALS_MAP } from '../../constants/dummyData';
 import { useSupplierRatesStore } from '../../stores/supplierRates';
 
 import SupplierRateSheetU from './SupplierRateSheetU.vue';
-import type { DropdownConfig } from './types';
+import type { DropdownConfig, SelectOption, BulkRule, SupplierSheetExposed, SupplierDocument } from '../../types/types';
 
 import { LocaleType } from '@univerjs/core';
 import type { IWorkbookData } from '@univerjs/core';
@@ -42,10 +42,7 @@ const displaySuppliersForProcess = computed(() => {
   return process?.suppliers || [];
 });
 
-interface SelectOption {
-  label: string;
-  value: string;
-}
+
 
 const processTypeOptions: SelectOption[] = [
   { label: 'Sand Cast', value: 'SAND CAST' },
@@ -291,12 +288,7 @@ const unitDropdownConfigs = computed((): DropdownConfig[] | undefined => {
   ];
 });
 
-interface BulkRule {
-  material: string;
-  rate: number;
-  fromSize: string;
-  toSize: string;
-}
+
 
 const showBulkDialog = ref(false);
 
@@ -309,18 +301,11 @@ const bulkForm = ref({
 
 const rules = ref<BulkRule[]>([]);
 
-type SupplierSheetExposed = {
-  setCellValue: (range: string, value: number) => void;
-};
+
 
 const sheetRef = ref<SupplierSheetExposed | null>(null);
 
-type SupplierDocument = {
-  id: number;
-  name: string;
-  tag: string;
-  file: File;
-};
+
 
 const showDocumentDialog = ref(false);
 
@@ -473,6 +458,7 @@ function onCellEdited(payload: { row: number; col: number; value: string | numbe
       <h4 class="step-title">Step 3: Supplier Rates Configuration</h4>
       <p class="step-description">Define supplier rates per material and size</p>
     </div>
+    <q-separator class="q-mb-md" />
 
     <!-- Top Controls -->
     <div class="top-controls q-pa-md q-mb-md">

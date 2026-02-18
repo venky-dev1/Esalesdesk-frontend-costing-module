@@ -27,7 +27,7 @@ import {
 } from '@univerjs/core';
 import { SetRangeValuesMutation } from '@univerjs/sheets';
 import type { ISetRangeValuesMutationParams } from '@univerjs/sheets';
-import type { DropdownConfig } from './types';
+import type { DropdownConfig } from '../../types/types';
 
 const props = defineProps<{
   initialData?: IWorkbookData;

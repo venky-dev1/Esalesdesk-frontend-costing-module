@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useMaterialsStore } from '../../stores/material';
+import type { NewMaterial } from '../../types/types';
 
 const materialsStore = useMaterialsStore();
 
 const showAddDialog = ref(false);
+
+const pagination = ref({
+  page: 1,
+  rowsPerPage: 6,
+});
 
 // Table columns
 const columns = [
@@ -20,11 +26,7 @@ function deleteMaterial(id: string) {
   materialsStore.deleteMaterial(id);
 }
 
-type NewMaterial = {
-  name: string;
-  qty: number;
-  type: 'MAKE' | 'BUY' | null;
-};
+
 
 const newMaterial = ref<NewMaterial>({
   name: '',
@@ -58,24 +60,86 @@ function addMaterial() {
 
 <template>
   <div class="step2-bom">
-    <!-- Header Row -->
-
+    <!-- ── Header ── -->
     <div class="step-header q-mb-md">
-      <h4 class="step-title">Step 2: Master BOM Definition</h4>
+      <h4 class="step-title">Master BOM Definition</h4>
       <p class="step-description">Define material components with quantities</p>
     </div>
+    <q-separator class="q-mb-md" />
 
-    <div class="header-row q-mb-md">
-      <q-btn class="usa-button--brand" label="Add Material" icon="add" @click="openDialog" />
-      <span class="materials-count">{{ materialsCount }} materials configured</span>
-    </div>
+    <!-- ── Materials Table Card ── -->
+    <q-card flat bordered class="section-card q-mb-md">
+      <q-card-section class="section-header">
+        <q-icon name="list_alt" size="20px" color="primary" class="q-mr-sm" />
+        <span class="section-title">Bill of Materials</span>
+        <q-badge
+          v-if="materialsCount"
+          color="primary"
+          :label="`${materialsCount} materials`"
+          class="q-ml-sm"
+        />
+        <q-space />
+        <q-btn
+          class="usa-button--brand action-btn"
+          label="Add Material"
+          icon="add"
+          unelevated
+          @click="openDialog"
+        />
+      </q-card-section>
 
-    <!-- Add Material Dialog -->
+      <q-separator />
+
+      <q-card-section class="q-pa-none">
+        <q-table
+          :rows="materialsStore.materials"
+          :columns="columns"
+          v-model:pagination="pagination"
+          row-key="id"
+          flat
+          class="bom-table"
+        >
+          <!-- Material Name Column -->
+          <template #body-cell-name="props">
+            <q-td :props="props">
+              <span class="material-name">{{ props.row.name }}</span>
+            </q-td>
+          </template>
+
+          <!-- Type Column with Badge -->
+          <template #body-cell-type="props">
+            <q-td :props="props">
+              <q-badge
+                :class="props.row.type === 'MAKE' ? 'type-badge-make' : 'type-badge-buy'"
+                :label="props.row.type"
+              />
+            </q-td>
+          </template>
+
+          <!-- Actions Column -->
+          <template #body-cell-actions="props">
+            <q-td :props="props">
+              <q-btn
+                class="delete-btn usa-error--brand-button"
+                label="Delete"
+                dense
+                @click="deleteMaterial(props.row.id)"
+              />
+            </q-td>
+          </template>
+        </q-table>
+      </q-card-section>
+    </q-card>
+
+    <!-- ── Add Material Dialog ── -->
     <q-dialog v-model="showAddDialog" persistent>
       <q-card class="add-dialog">
         <q-card-section class="dialog-header">
-          <div class="dialog-title">Add New Material</div>
+          <q-icon name="add_circle_outline" size="22px" color="primary" class="q-mr-sm" />
+          <span class="dialog-title">Add New Material</span>
         </q-card-section>
+
+        <q-separator />
 
         <q-card-section class="dialog-body">
           <!-- Material Name -->
@@ -114,83 +178,48 @@ function addMaterial() {
           </div>
         </q-card-section>
 
+        <q-separator />
+
         <q-card-actions class="dialog-actions">
           <q-btn
-            class="usa-button--brand min-btn"
+            class="usa-button--brand action-btn"
             label="Add Material"
             icon="check"
+            unelevated
             :disable="!newMaterial.name.trim() || !newMaterial.type"
             @click="addMaterial"
           />
-          <q-btn class="usa-button--brand-secondary min-btn" label="Cancel" v-close-popup />
+          <q-btn class="usa-button--brand-secondary action-btn" label="Cancel" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
-
-    <!-- BOM Table -->
-    <q-table
-      :rows="materialsStore.materials"
-      :columns="columns"
-      row-key="id"
-      flat
-      bordered
-      class="bom-table"
-      :rows-per-page-options="[0]"
-      hide-pagination
-    >
-      <!-- Material Name Column -->
-      <template #body-cell-name="props">
-        <q-td :props="props">
-          <span class="material-name">{{ props.row.name }}</span>
-        </q-td>
-      </template>
-
-      <!-- Type Column with Badge -->
-      <template #body-cell-type="props">
-        <q-td :props="props">
-          <q-badge
-            :class="props.row.type === 'MAKE' ? 'type-badge-make' : 'type-badge-buy'"
-            :label="props.row.type"
-          />
-        </q-td>
-      </template>
-
-      <!-- Actions Column -->
-      <template #body-cell-actions="props">
-        <q-td :props="props">
-          <q-btn
-            class="delete-btn usa-error--brand-button"
-            label="Delete"
-            dense
-            @click="deleteMaterial(props.row.id)"
-          />
-        </q-td>
-      </template>
-    </q-table>
   </div>
 </template>
 
 <style scoped>
-/* Header Row */
-.header-row {
+/* ── Section Cards ── */
+.section-card {
+  border-color: #dfe1e2;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.section-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  padding: 12px 16px;
+  background: #f9fafb;
 }
 
-.delete-btn {
-  min-width: 100px;
-}
-
-.materials-count {
+.section-title {
   font-size: 0.9375rem;
-  color: #71767a;
+  font-weight: 600;
+  color: #1b1b1b;
 }
 
-/* Table Styles */
+/* ── Table ── */
 .bom-table {
-  border: 1px solid #c9c9c9;
-  border-radius: 4px;
+  border: none;
 }
 
 :deep(.q-table thead th) {
@@ -199,26 +228,30 @@ function addMaterial() {
   color: #1b1b1b;
   background-color: #f0f0f0;
   padding: 12px 16px;
-  border-bottom: 1px solid #c9c9c9;
+  border-bottom: 1px solid #dfe1e2;
 }
 
 :deep(.q-table tbody td) {
   font-size: 0.9375rem;
   color: #1b1b1b;
   padding: 10px 16px;
-  border-bottom: 1px solid #c9c9c9;
+  border-bottom: 1px solid #dfe1e2;
 }
 
 :deep(.q-table tbody tr:hover) {
-  background-color: #f5f5f5;
+  background-color: #f9fafb;
 }
 
 .material-name {
   font-weight: 400;
-  color: gray;
+  color: #71767a;
 }
 
-/* Type Badge - MAKE (Blue) */
+.delete-btn {
+  min-width: 80px;
+}
+
+/* ── Type Badges ── */
 .type-badge-make {
   background-color: #005ea2 !important;
   color: white !important;
@@ -228,7 +261,6 @@ function addMaterial() {
   border-radius: 4px;
 }
 
-/* Type Badge - BUY (Green) */
 .type-badge-buy {
   background-color: #2e8540 !important;
   color: white !important;
@@ -238,45 +270,50 @@ function addMaterial() {
   border-radius: 4px;
 }
 
-/* Dialog Styles */
+/* ── Buttons ── */
+.action-btn {
+  min-width: 120px !important;
+  text-transform: none !important;
+  font-weight: 500;
+}
+
+/* ── Dialog ── */
 .add-dialog {
   min-width: 420px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .dialog-header {
+  display: flex;
+  align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #c9c9c9;
+  background: #f9fafb;
 }
 
 .dialog-title {
-  font-size: 1.25rem;
-  font-weight: 500;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: #1b1b1b;
   margin: 0;
 }
 
 .dialog-body {
-  padding: 5px 20px 20px 20px;
+  padding: 20px;
+  padding-top: 0px;
 }
 
 .form-field {
   width: 100%;
 }
 
-.min-btn {
-  min-width: 140px !important;
-  text-transform: none !important;
-}
-
-.min-btn :deep(.q-icon) {
-  font-size: 18px;
-}
-
 .dialog-actions {
-  padding: 16px 20px;
+  padding: 12px 20px;
   display: flex;
   gap: 12px;
-  border-top: 1px solid #c9c9c9;
+}
+
+/* ── Select / Input overrides ── */
+:deep(.q-field--outlined .q-field__control) {
+  border-radius: 4px;
 }
 </style>
