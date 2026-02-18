@@ -19,12 +19,18 @@ import UniverPresetSheetsDataValidationEnUS from '@univerjs/preset-sheets-data-v
 import '@univerjs/preset-sheets-data-validation/lib/index.css';
 
 // 3. Types
-import { UniverInstanceType, type IWorkbookData, type Univer } from '@univerjs/core';
+import { UniverInstanceType, type IWorkbookData, type Univer, type IDisposable } from '@univerjs/core';
+import { SetRangeValuesMutation } from '@univerjs/sheets';
+import type { ISetRangeValuesMutationParams } from '@univerjs/sheets';
 import type { DropdownConfig } from './types';
 
 const props = defineProps<{
   initialData?: IWorkbookData;
   dropdownConfigs?: DropdownConfig[] | undefined;
+}>();
+
+const emit = defineEmits<{
+  (e: 'cellEdited', payload: { row: number; col: number; value: string | number | null }): void;
 }>();
 
 const container = ref<HTMLElement | null>(null);
@@ -35,6 +41,8 @@ const workbook = shallowRef<any>(null);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const univerAPIRef = shallowRef<any>(null);
+
+let commandDisposable: IDisposable | null = null;
 
 function applyDropdownValidation(range: string, values: string[]) {
   const univerAPI = univerAPIRef.value;
@@ -85,9 +93,31 @@ onMounted(() => {
       applyDropdownValidation(cfg.range, cfg.values);
     });
   }
+
+  // Listen for cell value changes and emit cellEdited events
+  commandDisposable = univerAPI.onCommandExecuted((commandInfo: { id: string; params?: unknown }) => {
+    if (commandInfo.id !== SetRangeValuesMutation.id) return;
+    const params = commandInfo.params as ISetRangeValuesMutationParams;
+    if (!params?.cellValue) return;
+
+    // cellValue is Record<rowIndex, Record<colIndex, ICellData>>
+    for (const [rowStr, cols] of Object.entries(params.cellValue)) {
+      const row = Number(rowStr);
+      if (!cols || typeof cols !== 'object') continue;
+      for (const [colStr, cellData] of Object.entries(cols as Record<string, { v?: unknown }>)) {
+        const col = Number(colStr);
+        const value = cellData?.v ?? null;
+        emit('cellEdited', { row, col, value: value as string | number | null });
+      }
+    }
+  });
 });
 
 onBeforeUnmount(() => {
+  if (commandDisposable) {
+    commandDisposable.dispose();
+    commandDisposable = null;
+  }
   if (univerInstance.value) {
     univerInstance.value.dispose();
     univerInstance.value = null;
@@ -127,5 +157,22 @@ defineExpose({
 .univer-container {
   width: 100%;
   height: 100%;
+}
+</style>
+
+<!-- Non-scoped: Univer dropdown popup renders outside this component's scope -->
+<style>
+/* Widen the data-validation dropdown so long labels are visible */
+.univer-w-\[287px\] {
+  width: 680px !important;
+}
+
+/* Smaller font + text wrapping for dropdown list items */
+.univer-truncate {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  font-size: 0.5rem !important;
+  line-height: 0.5rem !important;
 }
 </style>

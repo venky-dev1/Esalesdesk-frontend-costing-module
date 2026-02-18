@@ -144,8 +144,8 @@ const getEmptyWorkbook = (): IWorkbookData => ({
 
 const getAttributesColumns = (): { title: string; width: number }[] => [
   { title: 'Attribute Name', width: 150 },
-  { title: 'Unit', width: 140 },
-  { title: 'Base Material', width: 140 },
+  { title: 'Unit', width: 100 },
+  { title: 'Base Material', width: 150 },
 ];
 
 const getMaterialsColumns = (): { title: string; width: number }[] => [
@@ -153,7 +153,7 @@ const getMaterialsColumns = (): { title: string; width: number }[] => [
 ];
 
 const getOperationsColumns = (): { title: string; width: number }[] => [
-  { title: 'Material', width: 120 },
+  { title: 'Material', width: 150 },
   { title: 'Operation Name', width: 180 },
   { title: 'Unit', width: 150 },
 ];
@@ -227,7 +227,9 @@ const currentWorkbookData = computed((): IWorkbookData => {
 
   if (columns.length > 0) {
     sizes.forEach((size) => {
-      columns.push({ title: size, width: 100 });
+      const colWidth = tab === 'MATERIALS' ? 290 : 120;
+
+      columns.push({ title: size, width: colWidth });
     });
   }
 
@@ -293,11 +295,39 @@ const currentWorkbookData = computed((): IWorkbookData => {
 
     matList.forEach((subMat, rowIndex) => {
       const actualRowIndex = rowIndex + 1;
-      cellData[`${actualRowIndex}`] = {
+
+      const rowCells: Record<string, ICellData> = {
         '0': { v: subMat, s: wrapStyle },
       };
+
+      // Populate each size column with the best available rate from the store
+      sizes.forEach((size, colIndex) => {
+        const cleanSize = size.replace(/"/g, '');
+        const entries = supplierRatesStore.getEntriesForCell(parentLabel, subMat, cleanSize);
+
+        // Show the first entry as "processType | supplier | ₹rate" if available
+        const entry = entries.length > 0 ? entries[0]! : null;
+        const cellValue = entry ? `${entry.processType} | ${entry.supplier} | ₹${entry.rate}` : '';
+        rowCells[`${colIndex + 1}`] = {
+          v: cellValue,
+          s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, tb: 3, fs: 8 },
+        };
+      });
+
+      cellData[`${actualRowIndex}`] = rowCells;
     });
 
+    dataRowCount = matList.length;
+  } else if (tab === 'OPERATIONS') {
+    const parentLabel = selectedNode.name;
+    const matList = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+    matList.forEach((subMat, rowIndex) => {
+      const actualRowIndex = rowIndex + 1;
+      const rowCells: Record<string, ICellData> = {
+        '0': { v: subMat, s: wrapStyle },
+      };
+      cellData[`${actualRowIndex}`] = rowCells;
+    });
     dataRowCount = matList.length;
   }
 

@@ -426,6 +426,38 @@ function addNote() {
   noteText.value = '';
   showNotesDialog.value = false;
 }
+
+function onCellEdited(payload: { row: number; col: number; value: string | number | null }) {
+  // Row 0 is the header, data rows start at 1
+  // Columns 0 = Material name, 1 = Unit, size columns start at 2
+  if (payload.row < 1 || payload.col < 2) return;
+  if (!selectedMaterial.value || !displayProcessTab.value || !displaySupplierTab.value) return;
+
+  const subMaterials = SUB_MATERIALS_MAP[selectedMaterial.value] || ['Standard'];
+  const sizes = selectedSizes.value || ['2', '4', '6'];
+
+  const subMatIndex = payload.row - 1;
+  const sizeIndex = payload.col - 2;
+
+  if (subMatIndex >= subMaterials.length || sizeIndex >= sizes.length) return;
+
+  const subMaterial = subMaterials[subMatIndex];
+  const sizeVal = sizes[sizeIndex];
+  if (!subMaterial || !sizeVal) return;
+  const size = sizeVal.replace(/"/g, '');
+  const rate = Number(payload.value);
+
+  if (isNaN(rate)) return;
+
+  supplierRatesStore.setRate(
+    selectedMaterial.value,
+    subMaterial,
+    size,
+    displayProcessTab.value,
+    displaySupplierTab.value,
+    rate,
+  );
+}
 </script>
 
 <template>
@@ -892,6 +924,7 @@ function addNote() {
                 :key="`${selectedMaterial}-${displayProcessTab}-${displaySupplierTab}`"
                 :initial-data="univerData"
                 :dropdown-configs="unitDropdownConfigs"
+                @cell-edited="onCellEdited"
               />
             </div>
           </div>
