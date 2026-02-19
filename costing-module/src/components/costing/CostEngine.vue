@@ -11,6 +11,7 @@ import {
   CAST_WEIGHT_DATA,
   OperationCostData,
   TestingCostData,
+  getUnitForMaterial,
 } from 'src/constants/dummyData';
 import { useSupplierRatesStore } from '../../stores/supplierRates';
 
@@ -29,6 +30,27 @@ const landedCost = ref({
   sga: 5,
 });
 
+// ─── Cost Overrides: captures cell edits from ANY tab ──────────────
+// Key format: "bomNodeId::TAB::row::col"  →  value the user typed / selected
+const costOverrides = ref<Record<string, string | number | null>>({});
+
+function handleCellEdited(payload: { row: number; col: number; value: string | number | null }) {
+  const nodeId = selectedBomNode.value;
+  const tab = activeTab.value;
+  if (!nodeId || nodeId === 'ROOT') return;
+  const key = `${nodeId}::${tab}::${payload.row}::${payload.col}`;
+  costOverrides.value[key] = payload.value;
+}
+
+function getOverride(
+  nodeId: string,
+  tab: string,
+  row: number,
+  col: number,
+): string | number | null | undefined {
+  return costOverrides.value[`${nodeId}::${tab}::${row}::${col}`];
+}
+
 const categoryTabs = [
   { name: 'ATTRIBUTES', icon: 'tune', label: 'Attributes' },
   { name: 'MATERIALS', icon: 'science', label: 'Materials' },
@@ -38,7 +60,6 @@ const categoryTabs = [
   { name: 'LANDED COST', icon: 'receipt_long', label: 'Landed Cost' },
   { name: 'PREVIEW', icon: 'analytics', label: 'Preview' },
 ];
-
 
 const buildTree = (materials: Material[]): BomNode[] => {
   return materials.map((m) => ({
@@ -172,7 +193,7 @@ const getToolingColumns = (): { title: string; width: number }[] => [
 ];
 
 const getPreviewColumns = (): { title: string; width: number }[] => [
-  { title: 'Material', width: 200 },
+  { title: 'Material', width: 150 },
   { title: 'Unit', width: 150 },
 ];
 
@@ -209,6 +230,396 @@ function generateToolingForNode(label: string, sizes: string[]) {
   });
 }
 
+// ─── Preview Tab Computed Data Getters ──────────────────────────────────
+// Each getter returns Record<subMaterial, Record<size, number>> for the selected BOM node.
+// Testing & Tooling use key '_ALL' because their costs are shared (not per sub-material).
+
+/** 1. Attributes — Cast Weight (kg) per sub-material per size */
+const previewAttributesData = computed((): Record<string, Record<string, number>> => {
+  if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return {};
+  const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
+  if (!selectedNode) return {};
+
+  const parentLabel = selectedNode.name;
+  const subMaterials = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+  const sizes = configStore.selectedSizes;
+  const result: Record<string, Record<string, number>> = {};
+
+  subMaterials.forEach((subMat, rowIdx) => {
+    const castWeightForMaterial = CAST_WEIGHT_DATA[parentLabel];
+    const castWeightForSubMat = castWeightForMaterial?.[subMat];
+    if (!castWeightForSubMat) return;
+
+    result[subMat] = {};
+    sizes.forEach((size, colIdx) => {
+      const cleanSize = size.replace(/"/g, '');
+      // Attributes tab: row = rowIdx+1 (0 is header), size col = colIdx+3
+      const ov = getOverride(selectedBomNode.value!, 'ATTRIBUTES', rowIdx + 1, colIdx + 3);
+      if (ov != null && ov !== '') {
+        result[subMat]![cleanSize] = typeof ov === 'number' ? ov : parseFloat(String(ov)) || 0;
+      } else {
+        const weight =
+          castWeightForSubMat[cleanSize] ?? castWeightForSubMat[parseFloat(cleanSize)] ?? 0;
+        result[subMat]![cleanSize] = weight;
+      }
+    });
+  });
+
+  return result;
+});
+
+/** 2. Materials — First (selected) supplier rate (₹) per sub-material per size */
+const previewMaterialsData = computed((): Record<string, Record<string, number>> => {
+  if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return {};
+  const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
+  if (!selectedNode) return {};
+
+  const parentLabel = selectedNode.name;
+  const subMaterials = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+  const sizes = configStore.selectedSizes;
+  const result: Record<string, Record<string, number>> = {};
+
+  subMaterials.forEach((subMat, rowIdx) => {
+    result[subMat] = {};
+    sizes.forEach((size, colIdx) => {
+      const cleanSize = size.replace(/"/g, '');
+      // Materials tab: row = rowIdx+1 (0 is header), col = colIdx+1 (col 0 is label)
+      const ov = getOverride(selectedBomNode.value!, 'MATERIALS', rowIdx + 1, colIdx + 1);
+      if (ov != null && typeof ov === 'string') {
+        // Dropdown format: "PROCESS | SUPPLIER | ₹RATE"
+        const match = ov.match(/₹([\d,.]+)/);
+        if (match) {
+          result[subMat]![cleanSize] = parseFloat(match[1]!.replace(/,/g, ''));
+        } else {
+          result[subMat]![cleanSize] = 0;
+        }
+      } else {
+        const entries = supplierRatesStore.getEntriesForCell(parentLabel, subMat, cleanSize);
+        const rate = entries.length > 0 ? entries[0]!.rate : 0;
+        result[subMat]![cleanSize] = rate;
+      }
+    });
+  });
+
+  return result;
+});
+
+/** 3. Operations — Sum of ALL operation costs per sub-material per size */
+const previewOperationsData = computed((): Record<string, Record<string, number>> => {
+  if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return {};
+  const selectedNode = findNode(materialsStore.materials, selectedBomNode.value);
+  if (!selectedNode) return {};
+
+  const parentLabel = selectedNode.name;
+  const subMaterials = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+  const sizes = configStore.selectedSizes;
+  const componentOps = OperationCostData[parentLabel];
+  const result: Record<string, Record<string, number>> = {};
+
+  // Build a flat row index map matching the Operations tab layout
+  let currentRow = 1; // row 0 is header
+  const rowMap: { subMat: string; opName: string; row: number }[] = [];
+  subMaterials.forEach((subMat) => {
+    const materialOps = componentOps ? componentOps[subMat] : null;
+    if (!materialOps) {
+      currentRow++; // "No Ops Data" row
+      return;
+    }
+    Object.keys(materialOps).forEach((opName) => {
+      rowMap.push({ subMat, opName, row: currentRow });
+      currentRow++;
+    });
+  });
+
+  subMaterials.forEach((subMat) => {
+    const materialOps = componentOps ? componentOps[subMat] : null;
+    result[subMat] = {};
+
+    sizes.forEach((size, colIdx) => {
+      const cleanSize = size.replace(/"/g, '');
+      let total = 0;
+      if (materialOps) {
+        Object.entries(materialOps).forEach(([opName, sizeCosts]) => {
+          // Check override: Operations tab size col = colIdx+3
+          const entry = rowMap.find((r) => r.subMat === subMat && r.opName === opName);
+          const ov = entry
+            ? getOverride(selectedBomNode.value!, 'OPERATIONS', entry.row, colIdx + 3)
+            : undefined;
+          if (ov != null && ov !== '' && ov !== '-') {
+            total += typeof ov === 'number' ? ov : parseFloat(String(ov)) || 0;
+          } else {
+            const cost = sizeCosts[cleanSize] ?? sizeCosts[parseFloat(cleanSize)] ?? 0;
+            total += cost;
+          }
+        });
+      }
+      result[subMat]![cleanSize] = total;
+    });
+  });
+
+  return result;
+});
+
+// ─── Per-tab cell builders ──────────────────────────────────────────
+// Each returns the number of data rows written into cellData.
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CellMap = Record<string, any>;
+
+function buildAttributesCells(
+  selectedNode: Material,
+  sizes: string[],
+  cellData: CellMap,
+  wrapStyle: Record<string, unknown>,
+): number {
+  const parentLabel = selectedNode.name;
+  const subMaterials = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+
+  subMaterials.forEach((subMat, rowIndex) => {
+    const actualRowIndex = rowIndex + 1;
+    const rowCells: Record<string, ICellData> = {};
+
+    rowCells['0'] = { v: 'Cast Weight', s: wrapStyle };
+    rowCells['1'] = { v: 'Weight(kg)', s: { ...wrapStyle } };
+    rowCells['2'] = { v: subMat, s: { ...wrapStyle } };
+
+    const castWeightForMaterial = CAST_WEIGHT_DATA[parentLabel];
+    const castWeightForSubMat = castWeightForMaterial?.[subMat];
+    sizes.forEach((size, colIndex) => {
+      const cleanSize = size.replace(/"/g, '');
+      const ov = getOverride(selectedNode.id, 'ATTRIBUTES', actualRowIndex, colIndex + 3);
+      const weight =
+        ov != null && ov !== ''
+          ? ov
+          : (castWeightForSubMat?.[cleanSize] ??
+            castWeightForSubMat?.[parseFloat(cleanSize)] ??
+            '');
+
+      rowCells[`${colIndex + 3}`] = {
+        v: weight,
+        s: { vt: 2, ht: 2, cl: { rgb: '#71767a' } },
+      };
+    });
+
+    cellData[`${actualRowIndex}`] = rowCells;
+  });
+
+  // Surface Area rows after all Cast Weight rows
+  const saStartRow = subMaterials.length + 1;
+
+  const saInternalCells: Record<string, ICellData> = {};
+  saInternalCells['0'] = { v: 'Surface Area Internal', s: wrapStyle };
+  saInternalCells['1'] = { v: 'SurfaceArea(m2)', s: { ...wrapStyle } };
+  cellData[`${saStartRow}`] = saInternalCells;
+
+  const saExternalCells: Record<string, ICellData> = {};
+  saExternalCells['0'] = { v: 'Surface Area External', s: wrapStyle };
+  saExternalCells['1'] = { v: 'SurfaceArea(m2)', s: { ...wrapStyle } };
+  cellData[`${saStartRow + 1}`] = saExternalCells;
+
+  return subMaterials.length + 2; // cast weight rows + 2 surface area rows
+}
+
+function buildMaterialsCells(
+  selectedNode: Material,
+  sizes: string[],
+  cellData: CellMap,
+  wrapStyle: Record<string, unknown>,
+): number {
+  const parentLabel = selectedNode.name;
+  const matList = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+
+  matList.forEach((subMat, rowIndex) => {
+    const actualRowIndex = rowIndex + 1;
+    const rowCells: Record<string, ICellData> = {
+      '0': { v: subMat, s: wrapStyle },
+    };
+
+    sizes.forEach((size, colIndex) => {
+      const cleanSize = size.replace(/"/g, '');
+      const ov = getOverride(selectedNode.id, 'MATERIALS', actualRowIndex, colIndex + 1);
+
+      let cellValue = '';
+      if (ov != null && typeof ov === 'string') {
+        cellValue = ov;
+      } else {
+        const entries = supplierRatesStore.getEntriesForCell(parentLabel, subMat, cleanSize);
+        const entry = entries.length > 0 ? entries[0]! : null;
+        cellValue = entry ? `${entry.processType} | ${entry.supplier} | ₹${entry.rate}` : '';
+      }
+
+      rowCells[`${colIndex + 1}`] = {
+        v: cellValue,
+        s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, tb: 3, fs: 8 },
+      };
+    });
+
+    cellData[`${actualRowIndex}`] = rowCells;
+  });
+
+  return matList.length;
+}
+
+function buildOperationsCells(
+  selectedNode: Material,
+  sizes: string[],
+  cellData: CellMap,
+  wrapStyle: Record<string, unknown>,
+): number {
+  const parentLabel = selectedNode.name;
+  const matList = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+  let currentRow = 1;
+
+  matList.forEach((subMat, rowIndex) => {
+    const componentOps = OperationCostData[parentLabel];
+    const materialOps = componentOps ? componentOps[subMat] : null;
+
+    if (!materialOps) {
+      cellData[`${rowIndex + 1}`] = {
+        '0': { v: subMat, s: wrapStyle },
+        '1': { v: 'No Ops Data', s: { ...wrapStyle, fs: 9, cl: { rgb: '#999999' } } },
+      };
+      currentRow++;
+      return;
+    }
+    Object.entries(materialOps).forEach(([opName, sizeCosts]) => {
+      const rowCells: Record<string, ICellData> = {};
+      rowCells['0'] = { v: subMat, s: { ...wrapStyle } };
+      rowCells['1'] = { v: opName.replace(/_/g, ' '), s: wrapStyle };
+      rowCells['2'] = { v: 'Per Unit', s: { ...wrapStyle, ht: 2 } };
+      sizes.forEach((size, colIndex) => {
+        const cleanSize = size.replace(/"/g, '');
+        const ov = getOverride(selectedNode.id, 'OPERATIONS', currentRow, colIndex + 3);
+
+        const cost =
+          ov != null && ov !== '' && ov !== '-'
+            ? ov
+            : sizeCosts[cleanSize] || sizeCosts[parseFloat(cleanSize)] || 0;
+
+        rowCells[`${colIndex + 3}`] = {
+          v: cost ? `${cost}` : '-',
+          s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, fs: 10 },
+        };
+      });
+      cellData[`${currentRow}`] = rowCells;
+      currentRow++;
+    });
+  });
+
+  return currentRow - 1;
+}
+
+function buildTestingCells(
+  selectedNode: Material,
+  sizes: string[],
+  cellData: CellMap,
+  wrapStyle: Record<string, unknown>,
+): number {
+  const parentLabel = selectedNode.name;
+  const componentTests = TestingCostData[parentLabel];
+
+  if (!componentTests) return 0;
+
+  let currentRow = 1;
+  Object.entries(componentTests).forEach(([testName, sizeCosts]) => {
+    const rowCells: Record<string, ICellData> = {};
+    rowCells['0'] = { v: testName, s: wrapStyle };
+    rowCells['1'] = { v: 'Per Unit', s: { ...wrapStyle, ht: 2 } };
+    sizes.forEach((size, colIndex) => {
+      const cleanSize = size.replace(/"/g, '');
+      const ov = getOverride(selectedNode.id, 'TESTING', currentRow, colIndex + 2);
+
+      const cost =
+        ov != null && ov !== '' && ov !== '-'
+          ? ov
+          : (sizeCosts[cleanSize] ?? sizeCosts[parseFloat(cleanSize)] ?? 0);
+
+      rowCells[`${colIndex + 2}`] = {
+        v: cost ? `${cost}` : '-',
+        s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, fs: 10 },
+      };
+    });
+    cellData[`${currentRow}`] = rowCells;
+    currentRow++;
+  });
+
+  return currentRow - 1;
+}
+
+function buildToolingCells(
+  selectedNode: Material,
+  sizes: string[],
+  cellData: CellMap,
+  wrapStyle: Record<string, unknown>,
+): number {
+  let currentRow = 1;
+  const toolingRows = generateToolingForNode(selectedNode.name, sizes);
+
+  toolingRows.forEach((rowArr) => {
+    const rowCells: Record<string, ICellData> = {};
+    rowArr.forEach((value, colIndex) => {
+      const ov = getOverride(selectedNode.id, 'TOOLING', currentRow, colIndex);
+      rowCells[`${colIndex}`] = {
+        v: ov != null && ov !== '' ? ov : value,
+        s: wrapStyle,
+      };
+    });
+    cellData[`${currentRow}`] = rowCells;
+    currentRow++;
+  });
+
+  return currentRow - 1;
+}
+
+function buildPreviewCells(
+  selectedNode: Material,
+  sizes: string[],
+  cellData: CellMap,
+  wrapStyle: Record<string, unknown>,
+): number {
+  const parentLabel = selectedNode.name;
+  const subMaterials = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
+  const isBuyItem = getUnitForMaterial(parentLabel) === 'per Unit';
+
+  const attrData = previewAttributesData.value;
+  const matData = previewMaterialsData.value;
+  const opsData = previewOperationsData.value;
+
+  const labelStyle = { ...wrapStyle, cl: { rgb: '#71767a' } };
+  const valueStyle = { vt: 2, ht: 2, cl: { rgb: '#71767a' }, fs: 10 };
+
+  let currentRow = 1;
+
+  // Per sub-material: Total Cost = (Material Rate × Cast Weight) + Operations  [per Kg]
+  //                   Total Cost = Material Rate + Operations                  [per Unit]
+  subMaterials.forEach((subMat) => {
+    const rowCells: Record<string, ICellData> = {};
+
+    rowCells['0'] = { v: subMat, s: labelStyle };
+    rowCells['1'] = { v: 'Total Cost (\u20b9)', s: wrapStyle };
+
+    sizes.forEach((size, colIdx) => {
+      const cleanSize = size.replace(/"/g, '');
+      const castWeight = attrData[subMat]?.[cleanSize] ?? 0;
+      const materialRate = matData[subMat]?.[cleanSize] ?? 0;
+      const opsCost = opsData[subMat]?.[cleanSize] ?? 0;
+
+      const materialCost = isBuyItem ? materialRate : materialRate * castWeight;
+      const totalCost = Math.round(materialCost + opsCost);
+
+      rowCells[`${colIdx + 2}`] = {
+        v: totalCost ? `\u20b9 ${totalCost.toLocaleString('en-IN')}` : '-',
+        s: valueStyle,
+      };
+    });
+
+    cellData[`${currentRow}`] = rowCells;
+    currentRow++;
+  });
+
+  return currentRow - 1;
+}
+
 let dataRowCount = 0;
 const currentWorkbookData = computed((): IWorkbookData => {
   if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return getEmptyWorkbook();
@@ -242,7 +653,6 @@ const currentWorkbookData = computed((): IWorkbookData => {
   if (columns.length > 0) {
     sizes.forEach((size) => {
       const colWidth = tab === 'MATERIALS' ? 290 : 120;
-
       columns.push({ title: size, width: colWidth });
     });
   }
@@ -256,166 +666,26 @@ const currentWorkbookData = computed((): IWorkbookData => {
   });
   cellData['0'] = headerRowData;
 
-  if (tab === 'ATTRIBUTES') {
-    const parentLabel = selectedNode.name;
-
-    const subMaterials = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
-
-    subMaterials.forEach((subMat, rowIndex) => {
-      const actualRowIndex = rowIndex + 1;
-
-      const rowCells: Record<string, ICellData> = {};
-
-      rowCells['0'] = { v: 'Cast Weight', s: wrapStyle };
-
-      rowCells['1'] = { v: 'Weight(kg)', s: { ...wrapStyle } };
-
-      rowCells['2'] = { v: subMat, s: { ...wrapStyle } };
-
-      const castWeightForMaterial = CAST_WEIGHT_DATA[parentLabel];
-      const castWeightForSubMat = castWeightForMaterial?.[subMat];
-      sizes.forEach((size, colIndex) => {
-        const cleanSize = size.replace(/"/g, '');
-        const weight =
-          castWeightForSubMat?.[cleanSize] ?? castWeightForSubMat?.[parseFloat(cleanSize)] ?? '';
-        rowCells[`${colIndex + 3}`] = {
-          v: weight,
-          s: { vt: 2, ht: 2, cl: { rgb: '#71767a' } },
-        };
-      });
-
-      cellData[`${actualRowIndex}`] = rowCells;
-    });
-
-    // Surface Area rows after all Cast Weight rows
-    const saStartRow = subMaterials.length + 1;
-
-    const saInternalCells: Record<string, ICellData> = {};
-    saInternalCells['0'] = { v: 'Surface Area Internal', s: wrapStyle };
-    saInternalCells['1'] = { v: 'SurfaceArea(m2)', s: { ...wrapStyle } };
-    cellData[`${saStartRow}`] = saInternalCells;
-
-    const saExternalCells: Record<string, ICellData> = {};
-    saExternalCells['0'] = { v: 'Surface Area External', s: wrapStyle };
-    saExternalCells['1'] = { v: 'SurfaceArea(m2)', s: { ...wrapStyle } };
-    cellData[`${saStartRow + 1}`] = saExternalCells;
-
-    dataRowCount = subMaterials.length + 2; // cast weight rows + 2 surface area rows
-  } else if (tab === 'MATERIALS') {
-    const parentLabel = selectedNode.name;
-    const matList = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
-
-    matList.forEach((subMat, rowIndex) => {
-      const actualRowIndex = rowIndex + 1;
-
-      const rowCells: Record<string, ICellData> = {
-        '0': { v: subMat, s: wrapStyle },
-      };
-
-      // Populate each size column with the best available rate from the store
-      sizes.forEach((size, colIndex) => {
-        const cleanSize = size.replace(/"/g, '');
-        const entries = supplierRatesStore.getEntriesForCell(parentLabel, subMat, cleanSize);
-
-        // Show the first entry as "processType | supplier | ₹rate" if available
-        const entry = entries.length > 0 ? entries[0]! : null;
-        const cellValue = entry ? `${entry.processType} | ${entry.supplier} | ₹${entry.rate}` : '';
-        rowCells[`${colIndex + 1}`] = {
-          v: cellValue,
-          s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, tb: 3, fs: 8 },
-        };
-      });
-
-      cellData[`${actualRowIndex}`] = rowCells;
-    });
-
-    dataRowCount = matList.length;
-  } else if (tab === 'OPERATIONS') {
-    const parentLabel = selectedNode.name;
-    const matList = SUB_MATERIALS_MAP[parentLabel] || [selectedNode.name];
-
-    let currentRow = 1;
-
-    matList.forEach((subMat, rowIndex) => {
-      const componentOps = OperationCostData[parentLabel];
-      const materialOps = componentOps ? componentOps[subMat] : null;
-
-      if (!materialOps) {
-        cellData[`${rowIndex + 1}`] = {
-          '0': { v: subMat, s: wrapStyle },
-          '1': { v: 'No Ops Data', s: { ...wrapStyle, fs: 9, cl: { rgb: '#999999' } } },
-        };
-        currentRow++;
-        return;
-      }
-      Object.entries(materialOps).forEach(([opName, sizeCosts]) => {
-        const rowCells: Record<string, ICellData> = {};
-        rowCells['0'] = {
-          v: subMat,
-          s: { ...wrapStyle },
-        };
-        rowCells['1'] = { v: opName.replace(/_/g, ' '), s: wrapStyle };
-        rowCells['2'] = { v: 'Per Unit', s: { ...wrapStyle, ht: 2 } };
-        sizes.forEach((size, colIndex) => {
-          const cleanSize = size.replace(/"/g, '');
-
-          const cost = sizeCosts[cleanSize] || sizeCosts[parseFloat(cleanSize)] || 0;
-
-          rowCells[`${colIndex + 3}`] = {
-            v: cost ? `${cost}` : '-',
-            s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, fs: 10 },
-          };
-        });
-        cellData[`${currentRow}`] = rowCells;
-        currentRow++;
-      });
-    });
-    dataRowCount = currentRow - 1;
-  } else if (tab === 'TESTING') {
-    const parentLabel = selectedNode.name;
-    const componentTests = TestingCostData[parentLabel];
-
-    if (!componentTests) {
-      dataRowCount = 0;
-    } else {
-      let currentRow = 1;
-      Object.entries(componentTests).forEach(([testName, sizeCosts]) => {
-        const rowCells: Record<string, ICellData> = {};
-        rowCells['0'] = { v: testName, s: wrapStyle };
-        rowCells['1'] = { v: 'Per Unit', s: { ...wrapStyle, ht: 2 } };
-        sizes.forEach((size, colIndex) => {
-          const cleanSize = size.replace(/"/g, '');
-          const cost = sizeCosts[cleanSize] ?? sizeCosts[parseFloat(cleanSize)] ?? 0;
-          rowCells[`${colIndex + 2}`] = {
-            v: cost ? `${cost}` : '-',
-            s: { vt: 2, ht: 2, cl: { rgb: '#71767a' }, fs: 10 },
-          };
-        });
-        cellData[`${currentRow}`] = rowCells;
-        currentRow++;
-      });
-      dataRowCount = currentRow - 1;
-    }
-  } else if (tab === 'TOOLING') {
-    let currentRow = 1;
-
-    const toolingRows = generateToolingForNode(selectedNode.name, sizes);
-
-    toolingRows.forEach((rowArr) => {
-      const rowCells: Record<string, ICellData> = {};
-
-      rowArr.forEach((value, colIndex) => {
-        rowCells[`${colIndex}`] = {
-          v: value,
-          s: wrapStyle,
-        };
-      });
-
-      cellData[`${currentRow}`] = rowCells;
-      currentRow++;
-    });
-
-    dataRowCount = currentRow - 1;
+  // Delegate to the appropriate builder function
+  switch (tab) {
+    case 'ATTRIBUTES':
+      dataRowCount = buildAttributesCells(selectedNode, sizes, cellData, wrapStyle);
+      break;
+    case 'MATERIALS':
+      dataRowCount = buildMaterialsCells(selectedNode, sizes, cellData, wrapStyle);
+      break;
+    case 'OPERATIONS':
+      dataRowCount = buildOperationsCells(selectedNode, sizes, cellData, wrapStyle);
+      break;
+    case 'TESTING':
+      dataRowCount = buildTestingCells(selectedNode, sizes, cellData, wrapStyle);
+      break;
+    case 'TOOLING':
+      dataRowCount = buildToolingCells(selectedNode, sizes, cellData, wrapStyle);
+      break;
+    case 'PREVIEW':
+      dataRowCount = buildPreviewCells(selectedNode, sizes, cellData, wrapStyle);
+      break;
   }
 
   return {
@@ -578,6 +848,7 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
             configs.push({
               range: `${colLetter}${rowNum}`,
               values: options,
+              strict: true,
             });
           }
         });
@@ -824,6 +1095,8 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
                 :key="`${selectedBomNode}-${activeTab}`"
                 :initial-data="currentWorkbookData"
                 :dropdown-configs="costEngineDropdownConfigs"
+                :protect-sheet="activeTab === 'MATERIALS' || activeTab === 'PREVIEW'"
+                @cellEdited="handleCellEdited"
               />
             </div>
           </div>

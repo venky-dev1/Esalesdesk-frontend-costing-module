@@ -28,6 +28,7 @@ export type MaterialRates = Record<string, SubMaterialRates>;
 export interface DropdownConfig {
     range: string; // e.g. "B2:B10"
     values: string[]; // e.g. ["per Kg", "per Unit"]
+    strict?: boolean; // if true, reject any typed value not in the list
 }
 
 // ─── BOM Tree ──────────────────────────────────────────────────────

@@ -29,9 +29,18 @@ import { SetRangeValuesMutation } from '@univerjs/sheets';
 import type { ISetRangeValuesMutationParams } from '@univerjs/sheets';
 import type { DropdownConfig } from '../../types/types';
 
+// 4. Cell-edit operations (used to block manual editing when protectSheet is true)
+import {
+  SetCellEditVisibleOperation,
+  SetCellEditVisibleWithF2Operation,
+  SetCellEditVisibleArrowOperation,
+  SetActivateCellEditOperation,
+} from '@univerjs/sheets-ui';
+
 const props = defineProps<{
   initialData?: IWorkbookData;
   dropdownConfigs?: DropdownConfig[] | undefined;
+  protectSheet?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -48,8 +57,9 @@ const workbook = shallowRef<any>(null);
 const univerAPIRef = shallowRef<any>(null);
 
 let commandDisposable: IDisposable | null = null;
+let editBlockDisposable: IDisposable | null = null;
 
-function applyDropdownValidation(range: string, values: string[]) {
+function applyDropdownValidation(range: string, values: string[], strict = false) {
   const univerAPI = univerAPIRef.value;
   if (!univerAPI) return;
   const fWorkbook = univerAPI.getActiveWorkbook();
@@ -58,9 +68,25 @@ function applyDropdownValidation(range: string, values: string[]) {
   if (!fWorksheet) return;
 
   const fRange = fWorksheet.getRange(range);
-  const rule = univerAPI.newDataValidation().requireValueInList(values).build();
+  let builder = univerAPI.newDataValidation().requireValueInList(values);
+  if (strict) {
+    builder = builder.setOptions({
+      allowBlank: false,
+      showErrorMessage: true,
+      error: 'Please select a value from the dropdown',
+    });
+  }
+  const rule = builder.build();
   fRange.setDataValidation(rule);
 }
+
+// Command IDs that open the cell editor (typing / double-click / F2 / arrow keys)
+const CELL_EDIT_COMMAND_IDS = new Set([
+  SetCellEditVisibleOperation.id,
+  SetCellEditVisibleWithF2Operation.id,
+  SetCellEditVisibleArrowOperation.id,
+  SetActivateCellEditOperation.id,
+]);
 
 onMounted(() => {
   if (!container.value) return;
@@ -95,8 +121,19 @@ onMounted(() => {
   // Apply dropdown data validation for each config
   if (props.dropdownConfigs) {
     props.dropdownConfigs.forEach((cfg) => {
-      applyDropdownValidation(cfg.range, cfg.values);
+      applyDropdownValidation(cfg.range, cfg.values, cfg.strict);
     });
+  }
+
+  // Block cell editor from opening (prevents typing) while dropdowns still work
+  if (props.protectSheet) {
+    editBlockDisposable = univerAPI.onBeforeCommandExecute(
+      (commandInfo: { id: string; params?: unknown }) => {
+        if (CELL_EDIT_COMMAND_IDS.has(commandInfo.id)) {
+          throw new Error('Edit blocked: select from dropdown');
+        }
+      },
+    );
   }
 
   // Listen for cell value changes and emit cellEdited events
@@ -121,6 +158,10 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (editBlockDisposable) {
+    editBlockDisposable.dispose();
+    editBlockDisposable = null;
+  }
   if (commandDisposable) {
     commandDisposable.dispose();
     commandDisposable = null;
@@ -169,11 +210,6 @@ defineExpose({
 
 <!-- Non-scoped: Univer dropdown popup renders outside this component's scope -->
 <style>
-/* Widen the data-validation dropdown so long labels are visible */
-.univer-w-\[287px\] {
-  width: 680px !important;
-}
-
 /* Smaller font + text wrapping for dropdown list items */
 .univer-truncate {
   white-space: normal !important;

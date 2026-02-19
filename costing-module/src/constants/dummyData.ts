@@ -49,7 +49,7 @@ export const SUB_MATERIALS_MAP: Record<string, string[]> = {
 
 export const VALID_DEMO_COMBOS: Record<string, Record<string, string[]>> = {
   BODY: {
-    'SAND CAST': ['IRONCORE CASTINGS PVT. LTD.'],
+    'SAND CAST': ['IRONCORE CASTING PVT. LTD.'],
     'INVESTMENT CASTING': ['PRIMECAST ENGINEERING'],
   },
   DISC: { 'SAND CAST': ['STEELFLOW COMPONENTS'] },

@@ -15,7 +15,7 @@ export const useMaterialsStore = defineStore('materials', {
         sourcing: [
           {
             processType: 'SAND CAST',
-            suppliers: ['IRONCORE CASTINGS PVT. LTD.'],
+            suppliers: ['IRONCORE CASTING PVT. LTD.'],
           },
           {
             processType: 'INVESTMENT CASTING',
