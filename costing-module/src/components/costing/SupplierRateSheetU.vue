@@ -59,6 +59,12 @@ const univerAPIRef = shallowRef<any>(null);
 let commandDisposable: IDisposable | null = null;
 let editBlockDisposable: IDisposable | null = null;
 
+const handleRejection = (event: PromiseRejectionEvent) => {
+  if (event.reason?.message === 'Edit blocked: select from dropdown') {
+    event.preventDefault();
+  }
+};
+
 function applyDropdownValidation(range: string, values: string[], strict = false) {
   const univerAPI = univerAPIRef.value;
   if (!univerAPI) return;
@@ -90,6 +96,8 @@ const CELL_EDIT_COMMAND_IDS = new Set([
 
 onMounted(() => {
   if (!container.value) return;
+
+  window.addEventListener('unhandledrejection', handleRejection);
 
   const { univer, univerAPI } = createUniver({
     locale: LocaleType.EN_US,
@@ -158,6 +166,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('unhandledrejection', handleRejection);
   if (editBlockDisposable) {
     editBlockDisposable.dispose();
     editBlockDisposable = null;

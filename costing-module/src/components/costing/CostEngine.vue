@@ -4,6 +4,7 @@ import { useMaterialsStore } from '../../stores/material';
 import { useProductConfigStore } from '../../stores/productConfig';
 import type { Material, DropdownConfig, BomNode } from '../../types/types';
 import SupplierRateSheetU from './SupplierRateSheetU.vue';
+import FinalPriceListReport from './FinalPriceListReport.vue';
 import type { IWorkbookData, ICellData } from '@univerjs/core';
 import { LocaleType, BooleanNumber } from '@univerjs/core';
 import {
@@ -23,6 +24,7 @@ const searchBom = ref('');
 const activeTab = ref('ATTRIBUTES');
 const selectedBomNode = ref<string | null>(null);
 const expanded = ref(['ROOT']);
+const showFinalReport = ref(false);
 
 const landedCost = ref({
   overhead: 8,
@@ -620,7 +622,29 @@ function buildPreviewCells(
   return currentRow - 1;
 }
 
-let dataRowCount = 0;
+function getOperationsDataRowCount(node: Material): number {
+  const matList = SUB_MATERIALS_MAP[node.name] || [node.name];
+  let count = 0;
+  matList.forEach((subMat) => {
+    const matOps = OperationCostData[node.name]?.[subMat];
+    if (!matOps) {
+      count++;
+    } else {
+      count += Object.keys(matOps).length;
+    }
+  });
+  return count;
+}
+
+function getTestingDataRowCount(node: Material): number {
+  const tests = TestingCostData[node.name];
+  return tests ? Object.keys(tests).length : 0;
+}
+
+function getToolingDataRowCount(): number {
+  return 4;
+}
+
 const currentWorkbookData = computed((): IWorkbookData => {
   if (!selectedBomNode.value || selectedBomNode.value === 'ROOT') return getEmptyWorkbook();
 
@@ -667,6 +691,7 @@ const currentWorkbookData = computed((): IWorkbookData => {
   cellData['0'] = headerRowData;
 
   // Delegate to the appropriate builder function
+  let dataRowCount = 0;
   switch (tab) {
     case 'ATTRIBUTES':
       dataRowCount = buildAttributesCells(selectedNode, sizes, cellData, wrapStyle);
@@ -789,22 +814,27 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
   if (unitColIndex !== undefined && unitColIndex >= 0) {
     const colLetter = String.fromCharCode(65 + unitColIndex);
 
-    let lastRow = 5;
+    let rowCount = 0;
+    const selectedNode = selectedNodeData.value;
+    if (!selectedNode) return undefined;
 
     if (tab === 'ATTRIBUTES') {
-      lastRow = getAttributesDataRowCount() + 1;
+      rowCount = getAttributesDataRowCount();
     } else if (tab === 'OPERATIONS') {
-      lastRow = dataRowCount + 1;
+      rowCount = getOperationsDataRowCount(selectedNode);
     } else if (tab === 'TESTING') {
-      lastRow = dataRowCount + 1;
+      rowCount = getTestingDataRowCount(selectedNode);
     } else if (tab === 'TOOLING') {
-      lastRow = dataRowCount + 1;
+      rowCount = getToolingDataRowCount();
     }
 
-    configs.push({
-      range: `${colLetter}2:${colLetter}${lastRow}`,
-      values: unitOptionsByTab[tab] || [],
-    });
+    if (rowCount > 0) {
+      const lastRow = rowCount + 1;
+      configs.push({
+        range: `${colLetter}2:${colLetter}${lastRow}`,
+        values: unitOptionsByTab[tab] || [],
+      });
+    }
   }
 
   // 2. Base Material column dropdown (filled with sub-materials)
@@ -858,6 +888,10 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
 
   return configs.length > 0 ? configs : undefined;
 });
+
+function handleRunCost() {
+  showFinalReport.value = true;
+}
 </script>
 
 <template>
@@ -872,9 +906,10 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
       </div>
       <q-btn
         class="usa-button--brand-accent"
-        label="RUN COST & SAVE"
-        icon="check_circle"
+        label="SHOW PRICE SHEETS"
+        icon="table_view"
         unelevated
+        @click="handleRunCost"
       />
     </div>
     <q-separator class="q-mb-md" />
@@ -1036,9 +1071,6 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
               <legend class="usa-legend">Landed Cost Configuration</legend>
               <div class="row q-col-gutter-lg">
                 <div class="col-12 col-md-4">
-                  <label class="usa-label"
-                    >{{ overheadLabel }} <span class="text-negative required-star">*</span></label
-                  >
                   <q-input
                     v-model.number="landedCost.overhead"
                     outlined
@@ -1047,12 +1079,10 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
                     suffix="%"
                     hint="Applied to total cost"
                     color="accent"
+                    :label="overheadLabel"
                   />
                 </div>
                 <div class="col-12 col-md-4">
-                  <label class="usa-label"
-                    >Freight <span class="text-negative required-star">*</span></label
-                  >
                   <q-input
                     v-model.number="landedCost.freight"
                     outlined
@@ -1061,12 +1091,10 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
                     suffix="%"
                     hint="Logistics markup"
                     color="accent"
+                    label="Freight %"
                   />
                 </div>
                 <div class="col-12 col-md-4">
-                  <label class="usa-label"
-                    >SG&A <span class="text-negative required-star">*</span></label
-                  >
                   <q-input
                     v-model.number="landedCost.sga"
                     outlined
@@ -1075,6 +1103,7 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
                     suffix="%"
                     hint="Selling, General & Admin"
                     color="accent"
+                    label="SG&A %"
                   />
                 </div>
               </div>
@@ -1103,6 +1132,9 @@ const costEngineDropdownConfigs = computed((): DropdownConfig[] | undefined => {
         </q-card>
       </div>
     </div>
+
+    <!-- FINAL REPORT DIALOG -->
+    <FinalPriceListReport v-model="showFinalReport" />
   </div>
 </template>
 
